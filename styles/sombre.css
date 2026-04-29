@@ -1224,3 +1224,91 @@ aside {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   border-color: #CF5E26;
 }
+
+/* Tooltip région */
+.tooltip-region {
+  display: none;
+  position: absolute;
+  background: #1F362F;
+  color: #F3F0D7;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  border: 1px solid #3D6457;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+}
+
+/* Image région affichée */
+.image-region {
+  text-align: center;
+  margin-top: 30px;
+}
+
+.image-region img {
+  max-width: 400px;
+  height: auto;
+  border-radius: 10px;
+  border: 2px solid #3D6457;
+}
+
+/* Grille des départements */
+.cartes-departements {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin-top: 40px;
+}
+
+/* Carte département */
+.carte-departement {
+  background: #313835;
+  border: 1px solid #4A5450;
+  border-radius: 10px;
+  padding: 24px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  text-align: center;
+}
+
+.carte-departement:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Numéro du département mis en évidence */
+.departement-numero {
+  display: inline-block;
+  background: #CF5E26;
+  color: #F3F0D7;
+  font-size: 1.8rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.departement-nom {
+  color: #F3F0D7;
+  font-size: 1.2rem;
+  margin: 0 0 16px 0;
+  font-family: Georgia, serif;
+  text-transform: none;
+}
+
+/* Bouton "Voir les villes" */
+.bouton-departement {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #2E4D42;
+  color: #F3F0D7;
+  text-decoration: none;
+  border-radius: 5px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.bouton-departement:hover {
+  background-color: #B5521F;
+}
