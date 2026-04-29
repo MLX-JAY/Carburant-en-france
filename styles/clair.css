@@ -1319,3 +1319,53 @@ aside {
 .bouton-departement:hover {
   background-color: #B5521F;
 }
+
+/* Formulaire sélection ville */
+.form-villes {
+  margin-top: 30px;
+  padding: 20px;
+  background: #FFFFFF;
+  border: 1px solid #C8CCC9;
+  border-radius: 10px;
+}
+
+.form-villes label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #1A1E1C;
+}
+
+.form-villes select {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  border: 1px solid #C8CCC9;
+  border-radius: 6px;
+  background: #F8F7F2;
+  color: #1A1E1C;
+  margin-bottom: 15px;
+}
+
+.form-villes .bouton-valider {
+  padding: 12px 24px;
+  background: #CF5E26;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.form-villes .bouton-valider:hover {
+  background: #B5521F;
+}
+
+.message-erreur {
+  margin-top: 20px;
+  padding: 15px;
+  background: #F0EFEA;
+  border-left: 4px solid #CF5E26;
+  color: #1A1E1C;
+}

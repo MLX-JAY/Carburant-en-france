@@ -9,12 +9,48 @@ $pageAuthor = 'ANURAJAN Thenuxshan, FERAOUN Mohamed Amine';
 require_once 'include/header.inc.php';
 require_once 'include/fonction.inc.php';
 
-// Initialize $lang from GET parameter or default to 'fr'
 $lang = $_GET['lang'] ?? 'fr';
-
 $index = $_GET['index'] ?? null;
+$dep = $_GET['dep'] ?? null;
+
+$departementsHTML = '';
+if ($index !== null && isset($regionsDepartements[$index])) {
+    ob_start();
+    echo '<h2>Départements de ' . $regionsNoms[$index] . '</h2>';
+    afficherDepartements($regionsDepartements[$index]);
+    $departementsHTML = ob_get_clean();
+}
+
+$villesHTML = '';
+if ($dep !== null) {
+    $villes = getVillesByDepartementFast($dep);
+    
+    if (empty($villes)) {
+        $villesHTML = '<p class="message-erreur">Aucune ville trouvée pour ce département.</p>';
+    } else {
+        ob_start();
+        ?>
+        <form method="get" class="form-villes">
+            <input type="hidden" name="dep" value="<?= htmlspecialchars($dep) ?>">
+            <input type="hidden" name="lang" value="<?= $lang ?>">
+            <input type="hidden" name="style" value="<?= $style ?>">
+            <label for="ville">Sélectionnez une ville :</label>
+            <select name="ville" id="ville">
+                <?php foreach ($villes as $ville): ?>
+                    <option value="<?= htmlspecialchars($ville) ?>"><?= htmlspecialchars($ville) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit" class="bouton-valider">Afficher les prix</button>
+        </form>
+        <?php
+        $villesHTML = ob_get_clean();
+    }
+}
 ?>
+
 <article id="exo-1">
+    <h2>Carte de la France - Sélectionnez votre région</h2>
+
     <img src="images/carte_France.svg" alt="Carte de la France" usemap="#map_regions" style="max-width: 100%; height: auto;">
 
     <div id="tooltip-region" class="tooltip-region"></div>
@@ -35,12 +71,8 @@ $index = $_GET['index'] ?? null;
         <area target="" alt="Corse" title="Corse" href="?index=12&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="889,825,944,771,959,851,933,923,904,899" shape="poly">
     </map>
 
-    <?php
-    if ($index !== null && isset($regionsDepartements[$index])) {
-        echo '<h2>Départements de ' . $regionsNoms[$index] . '</h2>';
-        afficherDepartements($regionsDepartements[$index]);
-    }
-    ?>
+    <?= $departementsHTML ?>
+    <?= $villesHTML ?>
 </article>
 
 <script>

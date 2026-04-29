@@ -1,5 +1,25 @@
 <?php
 
+/**
+ * @file fonction.inc.php
+ * @brief Fonctions utilitaires pour la gestion des régions, départements et villes de France.
+ * 
+ * Ce fichier contient les fonctions permettant de gérer l'affichage des régions et départements,
+ * ainsi que la récupération des villes à partir d'un fichier CSV optimisé par indexation.
+ * 
+ * @author ANURAJAN Thenuxshan, FERAOUN Mohamed Amine
+ * @version 1.0
+ * @date 2026
+ */
+
+/**
+ * @brief Tableau associatif des départements par région.
+ * 
+ * Indexé par numéro de région (0-12), contient un tableau de départements
+ * avec leur ID et nom.
+ * 
+ * @var array<int, array<int, array{id: string, nom: string}>>
+ */
 $regionsDepartements = [
     0 => [  // Bretagne
         ['id' => '22', 'nom' => 'Côtes-d\'Armor'],
@@ -114,6 +134,13 @@ $regionsDepartements = [
     ],
 ];
 
+/**
+ * @brief Tableau des noms de régions.
+ * 
+ * Indexé par numéro de région (0-12), associe le nom lisible de chaque région.
+ * 
+ * @var array<int, string>
+ */
 $regionsNoms = [
     0 => 'Bretagne',
     1 => 'Normandie',
@@ -130,8 +157,31 @@ $regionsNoms = [
     12 => 'Corse',
 ];
 
+/**
+ * @brief Affiche les cartes des départements d'une région.
+ * 
+ * Cette fonction génère le HTML pour afficher une grille de cartes de départements.
+ * Chaque carte contient le numéro du département, son nom et un lien vers la page
+ * de sélection des villes.
+ * 
+ * @param array $departements Tableau des départements à afficher.
+ *                             Chaque élément doit contenir 'id' et 'nom'.
+ * 
+ * @return void Cette fonction utilise echo pour afficher le HTML directement.
+ * 
+ * @global string $style Style actuel (clair ou sombre) pour les liens.
+ * @global string $lang Langue actuelle pour les liens.
+ * @global int|null $index Index de la région sélectionnée.
+ * 
+ * @note Utilise les variables globales $style, $lang et $index pour construire les URLs.
+ * 
+ * @example
+ * @code
+ * afficherDepartements($regionsDepartements[0]); // Affiche les départements de Bretagne
+ * @endcode
+ */
 function afficherDepartements(array $departements): void {
-    global $style, $lang;
+    global $style, $lang, $index;
     
     echo '<div class="cartes-departements">';
     
@@ -139,10 +189,203 @@ function afficherDepartements(array $departements): void {
         echo '<article class="carte-departement" id="departements">';
         echo '<span class="departement-numero">' . $dept['id'] . '</span>';
         echo '<h3 class="departement-nom">' . htmlspecialchars($dept['nom']) . '</h3>';
-        echo '<a href="?dep=' . $dept['id'] . '&lang=' . $lang . '&style=' . $style . '" class="bouton-departement">Voir les villes</a>';
+        echo '<a href="?dep=' . $dept['id'] . '&lang=' . $lang . '&style=' . $style . '&index=' . $index . '" class="bouton-departement">Voir les villes</a>';
         echo '</article>';
     }
     
     echo '</div>';
+}
+
+/**
+ * @brief Récupère la liste des villes d'un département à partir du fichier CSV.
+ * 
+ * Cette fonction lit séquentiellement le fichier CSV des communes de France
+ * et retourne toutes les villes du département spécifié.
+ * 
+ * @warning Cette fonction est lente pour les fichiers volumineux.
+ *          Utiliser getVillesByDepartementFast() pour de meilleures performances.
+ * 
+ * @param string $depCode Code du département (ex: "28", "02", "59").
+ *                         Peut être au format string ou int.
+ * 
+ * @return array<string> Tableau trié alphabétiquement des noms de villes.
+ *                       Retourne un tableau vide si le département n'existe pas
+ *                       ou si le fichier CSV n'est pas trouvé.
+ * 
+ * @since Version 1.0
+ * @see getVillesByDepartementFast() Pour une version optimisée avec indexation.
+ * 
+ * @note Le code département est normalisé (ajout du zéro initial si nécessaire).
+ *       Par exemple, "2" devient "02" pour l'Aisne.
+ * 
+ * @example
+ * @code
+ * $villes = getVillesByDepartement("28"); // Retourne les villes de l'Eure-et-Loir
+ * @endcode
+ */
+function getVillesByDepartement(string $depCode): array {
+    $villes = [];
+    $baseDir = dirname(__DIR__);
+    $csvPath = $baseDir . '/données/communes-france-2025.csv';
+    
+    if (!file_exists($csvPath)) {
+        return $villes;
+    }
+    
+    if (strlen($depCode) == 1 && is_numeric($depCode)) {
+        $depCode = str_pad($depCode, 2, '0', STR_PAD_LEFT);
+    }
+    
+    if (($handle = fopen($csvPath, "r")) !== FALSE) {
+        $header = fgetcsv($handle, 1000, ",", '"', "\\");
+        $headerIndices = array_flip($header);
+        $depIndex = $headerIndices['dep_code'] ?? 12;
+        $nomIndex = $headerIndices['nom_standard'] ?? 2;
+        
+        while (($data = fgetcsv($handle, 1000, ",", '"', "\\")) !== FALSE) {
+            $csvDepCode = isset($data[$depIndex]) ? trim($data[$depIndex]) : '';
+            if ($csvDepCode == $depCode) {
+                $villes[] = $data[$nomIndex];
+            }
+        }
+        fclose($handle);
+    }
+    sort($villes);
+    return $villes;
+}
+
+/**
+ * @brief Génère le fichier d'index des positions de départ de chaque département.
+ * 
+ * Cette fonction parcourt le fichier CSV une seule fois et crée un fichier JSON
+ * contenant la position de départ de chaque département dans le fichier.
+ * Ce fichier d'index permet ensuite un accès direct aux données avec fseek().
+ * 
+ * @return bool true si l'index a été généré avec succès, false en cas d'erreur.
+ * 
+ * @note Le fichier d'index est enregistré dans données/index_villes.json
+ * @note Cette fonction n'est normalement pas appelée directement.
+ *       Elle est invoked automatiquement par getVillesByDepartementFast().
+ * 
+ * @warning Cette opération peut prendre quelques secondes lors de la première exécution.
+ * 
+ * @example
+ * @code
+ * $result = genererIndexVilles(); // Génère index_villes.json
+ * @endcode
+ * 
+ * @see getVillesByDepartementFast() Utilise cet index pour un accès rapide.
+ */
+function genererIndexVilles(): bool {
+    $baseDir = dirname(__DIR__);
+    $csvPath = $baseDir . '/données/communes-france-2025.csv';
+    $indexPath = $baseDir . '/données/index_villes.json';
+    
+    if (!file_exists($csvPath)) {
+        error_log("CSV file not found");
+        return false;
+    }
+    
+    $index = [];
+    $handle = fopen($csvPath, 'r');
+    
+    if ($handle === false) {
+        return false;
+    }
+    
+    fgetcsv($handle, 1000, ",", '"', "\\");
+    
+    while (($data = fgetcsv($handle, 1000, ",", '"', "\\")) !== FALSE) {
+        if (isset($data[12])) {
+            $depCode = trim($data[12]);
+            $position = ftell($handle);
+            
+            if (!isset($index[$depCode])) {
+                $index[$depCode] = $position;
+            }
+        }
+    }
+    
+    fclose($handle);
+    file_put_contents($indexPath, json_encode($index));
+    return true;
+}
+
+/**
+ * @brief Récupère la liste des villes d'un département avec accès optimisé.
+ * 
+ * Cette fonction utilise un fichier d'index (index_villes.json) pour accéder
+ * directement à la position du département dans le fichier CSV, sans lire
+ * toutes les lignes précédentes. C'est beaucoup plus rapide que la version
+ * séquentielle pour les fichiers volumineux.
+ * 
+ * Si le fichier d'index n'existe pas, il est généré automatiquement lors
+ * du premier appel.
+ * 
+ * @param string $depCode Code du département (ex: "28", "02", "59").
+ *                         Peut être au format string ou int.
+ * 
+ * @return array<string> Tableau trié alphabétiquement des noms de villes.
+ *                       Retourne un tableau vide si le département n'existe pas
+ *                       ou si le fichier CSV n'est pas trouvé.
+ * 
+ * @since Version 1.0 (optimisée)
+ * @see getVillesByDepartement() Version séquentielle (plus lente).
+ * 
+ * @note Le code département est normalisé (ajout du zéro initial si nécessaire).
+ * 
+ * @note L'index est automatiquement généré si le fichier n'existe pas.
+ * 
+ * @example
+ * @code
+ * $villes = getVillesByDepartementFast("28"); // Retourne les villes de l'Eure-et-Loir
+ * @endcode
+ */
+function getVillesByDepartementFast(string $depCode): array {
+    $villes = [];
+    $baseDir = dirname(__DIR__);
+    $csvPath = $baseDir . '/données/communes-france-2025.csv';
+    $indexPath = $baseDir . '/données/index_villes.json';
+    
+    if (!file_exists($csvPath)) {
+        return $villes;
+    }
+    
+    if (!file_exists($indexPath)) {
+        genererIndexVilles();
+    }
+    
+    $index = json_decode(file_get_contents($indexPath), true);
+    
+    if ($index === null || !isset($index[$depCode])) {
+        return $villes;
+    }
+    
+    if (strlen($depCode) == 1 && is_numeric($depCode)) {
+        $depCode = str_pad($depCode, 2, '0', STR_PAD_LEFT);
+    }
+    
+    $handle = fopen($csvPath, 'r');
+    fseek($handle, $index[$depCode]);
+    
+    while (($data = fgetcsv($handle, 1000, ",", '"', "\\")) !== FALSE) {
+        if (!isset($data[12])) {
+            break;
+        }
+        
+        $currentDep = trim($data[12]);
+        
+        if ($currentDep !== $depCode) {
+            break;
+        }
+        
+        if (isset($data[2])) {
+            $villes[] = $data[2];
+        }
+    }
+    
+    fclose($handle);
+    sort($villes);
+    return $villes;
 }
 ?>
