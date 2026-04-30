@@ -1,0 +1,31 @@
+# Doxyfile pour le projet Carburant en France
+
+# --- Informations du projet ---
+PROJECT_NAME           = "Carburant en France"
+PROJECT_BRIEF          = "Site web de visualisation des prix des carburants en France"
+PROJECT_NUMBER         = "1.0"
+
+# --- Répertoires d'entrée et de sortie ---
+INPUT                  = .
+RECURSIVE              = YES
+OUTPUT_DIRECTORY       =
+HTML_OUTPUT            = doc
+
+# --- Fichiers à analyser ---
+FILE_PATTERNS          = *.php *.inc.php
+EXTENSION_MAPPING      = .inc.php=PHP
+
+# --- Options de génération ---
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+GENERATE_MAN           = NO
+
+# --- Extraction de la documentation ---
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+
+# --- Options d'affichage ---
+QUIET                  = NO
+WARNINGS               = YES
