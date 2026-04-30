@@ -52,6 +52,11 @@ if ($dep !== null && $afficher === 'villes') {
             <button type="submit" class="bouton-valider">Afficher les prix</button>
         </form>
         <script>
+            document.querySelector('.form-villes').addEventListener('submit', function(e) {
+                this.action = '#station-0';
+            });
+        </script>
+        <script>
             document.getElementById('ville').addEventListener('change', function() {
                 var selectedOption = this.options[this.selectedIndex];
                 var codePostal = selectedOption.getAttribute('data-code-postal');
@@ -69,8 +74,14 @@ if ($dep !== null && $afficher === 'villes') {
 }
 
 $stationsHTML = '';
-if ($afficherStations === 'stations' && $dep !== null) {
-    $stationsHTML = afficherStationsParDepartement($dep, $page, $tri, $index !== null ? (int)$index : null);
+$codePostal = $_GET['code_postal'] ?? '';
+
+if ($afficher === 'prix' && !empty($codePostal)) {
+    $stationsHTML = genererHtmlStations($codePostal);
+    $departementsHTML = '';
+} elseif ($afficher === 'stations' && !empty($dep)) {
+    $stationsHTML = afficherStationsparDepartement($dep);
+    $departementsHTML = '';
 }
 ?>
 
@@ -80,8 +91,24 @@ if ($afficherStations === 'stations' && $dep !== null) {
         Nous avons utilisé une API de géolocalisation IP pour détecter votre emplacement approximatif. Si les informations sont correctes, 
         vous pouvez pré-remplir les champs de sélection pour accéder rapidement aux prix du carburant de votre région.
     </p>
-    <?php if ($geoData !== null):
-    $regionIndex = array_search($geoData['region'], $regionsNoms);
+    <?php 
+$premierDep = '';
+$regionIndex = false;
+
+if ($geoData !== null && !empty($geoData['region'])) {
+    $regionNormalisee = normaliserChaine($geoData['region']);
+    $regionsNomsNormalisees = array_map('normaliserChaine', $regionsNoms);
+    $regionIndex = array_search($regionNormalisee, $regionsNomsNormalisees);
+    if ($regionIndex !== false && isset($regionsDepartements[$regionIndex])) {
+        $premierDep = $regionsDepartements[$regionIndex][0]['id'];
+    }
+}
+
+// Fallback: utiliser un département par défaut si non trouvé (ex: Paris 75)
+if (empty($premierDep)) {
+    $premierDep = '75'; // Paris par défaut
+    $regionIndex = 4; // Île-de-France
+}
 ?>
     <div class="geo-detected" role="alert">
         <p>Nous avons détecté que vous êtes à <b><?= htmlspecialchars($geoData['ville']) ?></b>, dans la région 
@@ -89,12 +116,13 @@ if ($afficherStations === 'stations' && $dep !== null) {
         <form method="get" class="geo-form">
             <input type="hidden" name="ville" value="<?= htmlspecialchars($geoData['ville']) ?>">
             <input type="hidden" name="index" value="<?= $regionIndex !== false ? $regionIndex : '' ?>">
+            <input type="hidden" name="dep" value="<?= htmlspecialchars($premierDep) ?>">
+            <input type="hidden" name="afficher" value="stations">
             <input type="hidden" name="lang" value="<?= $lang ?>">
             <input type="hidden" name="style" value="<?= $style ?>">
             <button type="submit" class="bouton-geo">Oui, pré-remplir</button>
         </form>
     </div>
-    <?php endif; ?>
 </article>
 <article id="exo-2">
     <h2>Carte de la France - Sélectionnez votre région</h2>

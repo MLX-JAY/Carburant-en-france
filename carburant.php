@@ -82,13 +82,35 @@ function rechercherStations(string $code_postal): array {
                 'adresse' => (string) $pdv['adresse'],
                 'ville' => (string) $pdv['ville'],
                 'cp' => $cp,
+                'automate_24' => (string) $pdv['automate-24-24'] === '1',
+                'maj' => null,
+                'services' => [],
+                'ruptures' => [],
                 'carburants' => []
             ];
 
+            $maj = null;
             foreach ($pdv->prix as $prix) {
                 $station['carburants'][] = [
                     'nom' => (string) $prix['nom'],
                     'valeur' => (float) $prix['valeur']
+                ];
+                if ($maj === null && isset($prix['maj'])) {
+                    $maj = (string) $prix['maj'];
+                }
+            }
+            $station['maj'] = $maj;
+
+            if (isset($pdv->services)) {
+                foreach ($pdv->services->service as $service) {
+                    $station['services'][] = (string) $service;
+                }
+            }
+
+            foreach ($pdv->rupture as $rupture) {
+                $station['ruptures'][] = [
+                    'nom' => (string) $rupture['fuel'],
+                    'type' => (string) $rupture['type']
                 ];
             }
 
@@ -113,20 +135,84 @@ function construireCartesHtml(array $stations): string {
 
     $html = '<div class="stations-grid">';
 
-    foreach ($stations as $station) {
-        $html .= '<article class="station-card">';
-        $html .= '<h3>' . htmlspecialchars($station['ville']) . ' (' . htmlspecialchars($station['cp']) . ')</h3>';
-        $html .= '<p class="adresse">' . htmlspecialchars($station['adresse']) . '</p>';
-        $html .= '<ul class="carburants-list">';
+    foreach ($stations as $index => $station) {
+        // Séparer les carburants principaux des secondaires
+        $carburants_principaux = [];
+        $carburants_secondaires = [];
 
         foreach ($station['carburants'] as $carburant) {
-            $html .= '<li>';
-            $html .= '<span class="nom-carburant">' . htmlspecialchars($carburant['nom']) . '</span>';
-            $html .= '<span class="prix-carburant">' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</span>';
-            $html .= '</li>';
+            $nom = $carburant['nom'];
+            if (in_array($nom, ['Gazole', 'E10', 'SP95'])) {
+                $carburants_principaux[] = $carburant;
+            } else {
+                $carburants_secondaires[] = $carburant;
+            }
         }
 
-        $html .= '</ul></article>';
+
+
+        $html .= '<article class="station-card" id="station-' . $index . '">';
+        $html .= '<header>';
+        $html .= '<h3>' . htmlspecialchars($station['ville']) . ' (' . htmlspecialchars($station['cp']) . ')</h3>';
+        $html .= '<p class="adresse">' . htmlspecialchars($station['adresse']) . '</p>';
+        
+        // Carburants principaux (Gazole, E10, SP95)
+        if (!empty($carburants_principaux)) {
+            $html .= '<div class="carburants-principaux">';
+            foreach ($carburants_principaux as $carburant) {
+                $html .= '<span class="prix-carburant">' . htmlspecialchars($carburant['nom']) . ' : ' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</span>';
+            }
+            $html .= '</div>';
+        }
+        
+        // Badge 24h/24
+        if ($station['automate_24']) {
+            $html .= '<span class="badge-24h">Ouvert 24h/24</span>';
+        }
+        
+        // Bouton détails
+        $html .= '<button class="btn-details" data-target="details-' . $index . '" onclick="toggleDetails(' . $index . ')">Voir tous les détails</button>';
+        $html .= '</header>';
+        
+        // Section détails (cachée)
+        $html .= '<div class="station-details" id="details-' . $index . '" hidden>';
+        
+        // Tous les carburants
+        $html .= '<h4>Tous les carburants</h4><ul>';
+        foreach ($station['carburants'] as $carburant) {
+            $html .= '<li>' . htmlspecialchars($carburant['nom']) . ' : ' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</li>';
+        }
+        $html .= '</ul>';
+        
+        // Date mise à jour
+        if ($station['maj']) {
+            $maj_timestamp = strtotime($station['maj']);
+            if ($maj_timestamp !== false) {
+                $html .= '<p class="maj">Prix mis à jour le ' . date('d/m/Y à H\hi', $maj_timestamp) . '</p>';
+            }
+        }
+        
+        // Services
+        if (!empty($station['services'])) {
+            $html .= '<h4>Services</h4><ul class="services-list">';
+            foreach ($station['services'] as $service) {
+                $html .= '<li>' . htmlspecialchars($service) . '</li>';
+            }
+            $html .= '</ul>';
+        }
+        
+        // Ruptures de stock
+        if (!empty($station['ruptures'])) {
+            $html .= '<h4>Ruptures de stock</h4>';
+            foreach ($station['ruptures'] as $rupture) {
+                if ($rupture['type'] === 'temporaire') {
+                    $html .= '<p class="rupture-alerte">' . htmlspecialchars($rupture['nom']) . ' : Rupture temporaire</p>';
+                }
+            }
+        }
+        
+        $html .= '</div>'; // ferme station-details
+        $html .= '</article>';
     }
 
     $html .= '</div>';
@@ -141,6 +227,62 @@ function construireCartesHtml(array $stations): string {
 function genererHtmlStations(string $code_postal = '95000'): string {
     refreshCacheSiNecessaire();
     $stations = rechercherStations($code_postal);
-    return construireCartesHtml($stations);
+    
+    // Récupération IP et enregistrement CSV
+    $user_ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (!empty($stations)) {
+        $ville_trouvee = $stations[0]['ville'];
+        enregistrerConsultationCsv($ville_trouvee, $user_ip);
+    } else {
+        enregistrerConsultationCsv("Inconnue (CP: " . $code_postal . ")", $user_ip);
+    }
+    
+    $html = construireCartesHtml($stations);
+    
+    // Ajouter le JavaScript pour le toggle des détails
+    $html .= '<script>
+    function toggleDetails(id) {
+        const detailsDiv = document.getElementById("details-" + id);
+        const button = document.querySelector("button[data-target=\\"details-" + id + "\\"]");
+        
+        detailsDiv.hidden = !detailsDiv.hidden;
+        
+        if (detailsDiv.hidden) {
+            button.textContent = "Voir tous les détails";
+        } else {
+            button.textContent = "Masquer les détails";
+        }
+    }
+    </script>';
+    
+    return $html;
+}
+
+// =====================================================================
+// 5. Sous-fonction : Historique CSV (Les Logs)
+// =====================================================================
+/**
+ * Enregistre chaque recherche dans un fichier CSV avec la date, l'heure et l'IP.
+ */
+function enregistrerConsultationCsv(string $ville, string $ip = ''): void {
+    $fichierCsv = __DIR__ . '/historique_recherches.csv';
+    $fichierExiste = file_exists($fichierCsv);
+    
+    $fichier = fopen($fichierCsv, 'a');
+    
+    if ($fichier !== false) {
+        if (!$fichierExiste) {
+            fputcsv($fichier, ['Date', 'Heure', 'Ville_Consultee', 'Adresse_IP']);
+        }
+        
+        $date = date('d/m/Y');
+        $heure = date('H:i:s');
+        $villePropre = ucfirst(strtolower($ville));
+        
+        $ligne = [$date, $heure, $villePropre, $ip];
+        fputcsv($fichier, $ligne);
+        
+        fclose($fichier);
+    }
 }
 ?>

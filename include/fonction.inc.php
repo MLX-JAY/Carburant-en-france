@@ -5,12 +5,19 @@
  * @brief Fonctions utilitaires pour la gestion des régions, départements et villes de France.
  * 
  * Ce fichier contient les fonctions permettant de gérer l'affichage des régions et départements,
- * ainsi que la récupération des villes à partir d'un fichier CSV optimisé par indexation.
+ * ainsi que la récupération des villes à partir d'un fichier CSV optimisé par indexation,
+ * et la recherche des stations de carburant.
  * 
  * @author ANURAJAN Thenuxshan, FERAOUN Mohamed Amine
- * @version 1.0
+ * @version 2.0
  * @date 2026
  */
+
+// Configuration pour les carburants
+$remoteZipUrl = 'https://donnees.roulez-eco.fr/opendata/instantane';
+$xmlLocalPath = dirname(__DIR__) . '/données/carburants.xml';
+$zipTempPath = dirname(__DIR__) . '/données/temp_carburants.zip';
+$cacheValidity = 10 * 60;
 
 /**
  * @brief Tableau associatif des départements par région.
@@ -428,6 +435,22 @@ function getVillesByDepartementFast(string $depCode): array {
  * }
  * @endcode
  */
+
+/**
+ * @brief Normalise une chaîne pour supprimer les accents
+ * @param string $chaine La chaîne à normaliser
+ * @return string Chaîne sans accents
+ */
+function normaliserChaine(string $chaine): string {
+    $chaine = strtolower($chaine);
+    $chaine = str_replace(['é', 'è', 'ê', 'ë'], 'e', $chaine);
+    $chaine = str_replace(['à', 'â', 'ä'], 'a', $chaine);
+    $chaine = str_replace(['î', 'ï'], 'i', $chaine);
+    $chaine = str_replace(['ô', 'ö'], 'o', $chaine);
+    $chaine = str_replace(['ù', 'û', 'ü'], 'u', $chaine);
+    return $chaine;
+}
+
 function getGeolocationIP(): ?array {
     // 1. Récupérer l'IP
     $user_ip = $_SERVER['REMOTE_ADDR'] ?? '';
@@ -485,12 +508,12 @@ function getGeolocationIP(): ?array {
  * @global string $zipTempPath Chemin temporaire pour le ZIP
  * @global int $cacheValidity Duree de validite du cache en secondes
  */
+/**
+ * @brief Cache (L'intendant)
+ * Gère le téléchargement et l'extraction du fichier XML
+ */
 function refreshCacheSiNecessaire(): void {
-    $baseDir = dirname(__DIR__);
-    $remoteZipUrl = 'https://donnees.roulez-eco.fr/opendata/instantane';
-    $xmlLocalPath = $baseDir . '/données/carburants.xml';
-    $zipTempPath = $baseDir . '/temp_carburants.zip';
-    $cacheValidity = 10 * 60;
+    global $remoteZipUrl, $xmlLocalPath, $zipTempPath, $cacheValidity;
 
     $needsRefresh = true;
     if (file_exists($xmlLocalPath)) {
@@ -534,32 +557,13 @@ function refreshCacheSiNecessaire(): void {
 }
 
 /**
- * @brief Recherche les stations de carburant par code postal.
- * 
- * Cette fonction filtre les stations du fichier XML en fonction du prefixe
- * du code postal (3 premiers chiffres) et extrait les informations suivantes :
- * - Adresse de la station
- * - Ville et code postal
- * - Liste des carburants disponibles avec leurs prix
- * 
+ * @brief Recherche (Le détective)
+ * Filtre les stations par code postal et extrait les données complètes
  * @param string $code_postal Code postal pour la recherche (ex: "28000")
- * 
- * @return array Station trouvees avec leurs informations.
- *               Tableau vide si aucune station ou erreur.
- * 
- * @note La recherche utilise les 3 premiers chiffres du code postal
- * @note Utilise SimpleXML pour parser le fichier XML des carburants
- * 
- * @example
- * @code
- * $stations = rechercherStations("28000"); // Retourne les stations autour de Chartres
- * @endcode
- * 
- * @see refreshCacheSiNecessaire() Doit etre appele avant cette fonction
+ * @return array Tableau des stations trouvées avec toutes les informations
  */
 function rechercherStations(string $code_postal): array {
-    $baseDir = dirname(__DIR__);
-    $xmlLocalPath = $baseDir . '/données/carburants.xml';
+    global $xmlLocalPath;
 
     $prefixe_recherche = substr($code_postal, 0, 3);
     $stations_trouvees = [];
@@ -580,14 +584,38 @@ function rechercherStations(string $code_postal): array {
                 'adresse' => (string) $pdv->adresse,
                 'ville' => (string) $pdv->ville,
                 'cp' => $cp,
+                'automate_24' => (string)$pdv['automate-24-24'] === '1',
+                'maj' => null,
+                'services' => [],
+                'ruptures' => [],
                 'carburants' => []
             ];
 
+            $maj = null;
             foreach ($pdv->prix as $prix) {
                 $station['carburants'][] = [
                     'nom' => (string) $prix['nom'],
                     'valeur' => (float) $prix['valeur']
                 ];
+                if ($maj === null && isset($prix['maj'])) {
+                    $maj = (string) $prix['maj'];
+                }
+            }
+            $station['maj'] = $maj;
+
+            if (isset($pdv->services)) {
+                foreach ($pdv->services->service as $service) {
+                    $station['services'][] = (string) $service;
+                }
+            }
+
+            if (isset($pdv->ruptures)) {
+                foreach ($pdv->ruptures->rupture as $rupture) {
+                    $station['ruptures'][] = [
+                        'nom' => (string) $rupture['nom'],
+                        'type' => (string) $rupture['type']
+                    ];
+                }
             }
 
             if (!empty($station['carburants'])) {
@@ -600,48 +628,80 @@ function rechercherStations(string $code_postal): array {
 }
 
 /**
- * @brief Genere le HTML des cartes de stations de carburant.
- * 
- * Cette fonction prend un tableau de stations et genere le code HTML
- * pour les afficher sous forme de cartes avec :
- * - Titre avec ville et code postal
- * - Adresse de la station
- * - Liste des carburants disponibles avec leurs prix
- * 
- * @param array $stations Tableau des stations a afficher.
- * 
- * @return string Code HTML des cartes de stations.
- *                Retourne un message si aucune station trouvee.
- * 
- * @note Utilise les classes CSS : stations-grid, station-card, carburants-list
- * 
- * @example
- * @code
- * $html = construireCartesHtml($stations);
- * echo $html;
- * @endcode
+ * @brief Génère le HTML des cartes de stations de carburant avec détails interactifs
+ * @param array $stations Tableau des stations à afficher
+ * @return string Code HTML des cartes avec toggle détails
  */
 function construireCartesHtml(array $stations): string {
     if (empty($stations)) {
-        return '<p class="message-erreur">Aucune station trouvee pour cette zone.</p>';
+        return '<p class="message-erreur">Aucune station trouvée pour cette zone.</p>';
     }
 
+    $carburants_principaux = ['Gazole', 'E10', 'SP95', 'SP98'];
+
     $html = '<div class="stations-grid">';
+    $index = 0;
 
     foreach ($stations as $station) {
-        $html .= '<article class="station-card">';
-        $html .= '<h3>' . htmlspecialchars($station['ville']) . ' (' . htmlspecialchars($station['cp']) . ')</h3>';
-        $html .= '<p class="station-adresse">' . htmlspecialchars($station['adresse']) . '</p>';
-        $html .= '<ul class="carburants-list">';
+        $principaux = array_filter($station['carburants'], function($c) use ($carburants_principaux) {
+            return in_array($c['nom'], $carburants_principaux);
+        });
 
+        $html .= '<article class="station-card" id="station-' . $index . '">';
+        $html .= '<header>';
+        $html .= '<h3>' . htmlspecialchars($station['ville']) . ' (' . htmlspecialchars($station['cp']) . ')</h3>';
+        $html .= '<p class="adresse">' . htmlspecialchars($station['adresse']) . '</p>';
+        
+        if (!empty($principaux)) {
+            $html .= '<div class="carburants-principaux">';
+            foreach ($principaux as $carburant) {
+                $html .= '<span class="prix-carburant">' . htmlspecialchars($carburant['nom']) . ' : ' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</span>';
+            }
+            $html .= '</div>';
+        }
+        
+        if ($station['automate_24']) {
+            $html .= '<span class="badge-24h">Ouvert 24h/24</span>';
+        }
+        
+        $html .= '<button class="btn-details" data-target="details-' . $index . '" onclick="toggleDetails(' . $index . ')">Voir tous les détails</button>';
+        $html .= '</header>';
+        
+        $html .= '<div class="station-details" id="details-' . $index . '" hidden>';
+        
+        $html .= '<h4>Tous les carburants</h4><ul>';
         foreach ($station['carburants'] as $carburant) {
-            $html .= '<li class="carburant-item">';
-            $html .= '<span class="nom-carburant">' . htmlspecialchars($carburant['nom']) . '</span>';
-            $html .= '<span class="prix-carburant">' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</span>';
-            $html .= '</li>';
+            $html .= '<li>' . htmlspecialchars($carburant['nom']) . ' : ' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</li>';
+        }
+        $html .= '</ul>';
+        
+        if ($station['maj']) {
+            $maj_timestamp = strtotime($station['maj']);
+            if ($maj_timestamp !== false) {
+                $html .= '<p class="maj">Prix mis à jour le ' . date('d/m/Y à H\hi', $maj_timestamp) . '</p>';
+            }
         }
 
-        $html .= '</ul></article>';
+        if (!empty($station['services'])) {
+            $html .= '<h4>Services</h4><ul class="services-list">';
+            foreach ($station['services'] as $service) {
+                $html .= '<li>' . htmlspecialchars($service) . '</li>';
+            }
+            $html .= '</ul>';
+        }
+
+        if (!empty($station['ruptures'])) {
+            $html .= '<h4>Ruptures de stock</h4>';
+            foreach ($station['ruptures'] as $rupture) {
+                if ($rupture['type'] === 'temporaire') {
+                    $html .= '<p class="rupture-alerte">' . htmlspecialchars($rupture['nom']) . ' : Rupture temporaire</p>';
+                }
+            }
+        }
+
+        $html .= '</div>';
+        $html .= '</article>';
+        $index++;
     }
 
     $html .= '</div>';
@@ -649,31 +709,32 @@ function construireCartesHtml(array $stations): string {
 }
 
 /**
- * @brief Fonction principale d'orchestration pour afficher les stations.
- * 
- * Cette fonction coordonne l'ensemble du processus :
- * 1. Verifie et telecharge le cache XML si necessaire
- * 2. Recherche les stations par code postal
- * 3. Genere le HTML pour l'affichage
- * 
- * @param string $code_postal Code postal pour la recherche (defaut: "95000")
- * 
- * @return string Code HTML pret a etre affiche
- * 
- * @example
- * @code
- * $html = genererHtmlStations("28000");
- * echo $html;
- * @endcode
- * 
- * @see refreshCacheSiNecessaire()
- * @see rechercherStations()
- * @see construireCartesHtml()
+ * @brief Orchestration (Le chef d'orchestre)
+ * Appelle les autres fonctions dans l'ordre et retourne le HTML final avec JavaScript
+ * @param string $code_postal Code postal pour la recherche
+ * @return string Code HTML prêt à être affiché avec toggle détails
  */
 function genererHtmlStations(string $code_postal = '95000'): string {
     refreshCacheSiNecessaire();
     $stations = rechercherStations($code_postal);
-    return construireCartesHtml($stations);
+    $html = construireCartesHtml($stations);
+    
+    $html .= '<script>
+    function toggleDetails(id) {
+        const detailsDiv = document.getElementById("details-" + id);
+        const button = document.querySelector("button[data-target=\"details-" + id + "\"]");
+        
+        detailsDiv.hidden = !detailsDiv.hidden;
+        
+        if (detailsDiv.hidden) {
+            button.textContent = "Voir tous les détails";
+        } else {
+            button.textContent = "Masquer les détails";
+        }
+    }
+    </script>';
+    
+    return $html;
 }
 
 /**
@@ -822,5 +883,33 @@ function afficherStationsParDepartement(string $depCode, int $page = 1, string $
     $html .= '</div>';
     
     return $html;
+}
+
+/**
+ * @brief Historique CSV (Les Logs)
+ * Enregistre chaque recherche dans un fichier CSV avec la date, l'heure et l'IP
+ * @param string $ville Ville recherchée
+ * @param string $ip Adresse IP de l'utilisateur
+ */
+function enregistrerConsultationCsv(string $ville, string $ip = ''): void {
+    $fichierCsv = dirname(__DIR__) . '/données/historique_recherches.csv';
+    $fichierExiste = file_exists($fichierCsv);
+    
+    $fichier = fopen($fichierCsv, 'a');
+    
+    if ($fichier !== false) {
+        if (!$fichierExiste) {
+            fputcsv($fichier, ['Date', 'Heure', 'Ville_Consultee', 'Adresse_IP']);
+        }
+        
+        $date = date('d/m/Y');
+        $heure = date('H:i:s');
+        $villePropre = ucfirst(strtolower($ville));
+        
+        $ligne = [$date, $heure, $villePropre, $ip];
+        fputcsv($fichier, $ligne);
+        
+        fclose($fichier);
+    }
 }
 ?>

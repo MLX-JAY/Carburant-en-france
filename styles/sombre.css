@@ -1619,3 +1619,96 @@ aside {
   color: #5DBF63;
   font-weight: bold;
 }
+
+/* Styles pour les cartes stations carburant */
+.carburants-principaux {
+  display: flex;
+  gap: 1rem;
+  margin: 0.5rem 0;
+  font-weight: bold;
+}
+
+.badge-24h {
+  background: #27ae60;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  display: inline-block;
+  margin: 0.5rem 0;
+}
+
+.btn-details {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  font-family: Georgia, serif;
+  transition: background 0.2s;
+}
+
+.btn-details:hover {
+  background: #2980b9;
+}
+
+.station-details {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid #4A5450;
+}
+
+.station-details h4 {
+  color: #F3F0D7;
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  margin: 1rem 0 0.5rem 0;
+}
+
+.station-details ul {
+  list-style: disc inside;
+  margin-left: 10px;
+}
+
+.station-details li {
+  color: #E8E5D0;
+  font-size: 0.9rem;
+  margin: 0.3rem 0;
+}
+
+.maj {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 0.85rem;
+  color: #A0A898;
+  font-family: monospace;
+  display: block;
+  margin: 0.5rem 0;
+}
+
+.rupture-alerte {
+  color: #e74c3c;
+  font-weight: bold;
+  background: rgba(231, 76, 60, 0.15);
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin: 0.5rem 0;
+}
+
+.services-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none !important;
+  padding: 0 !important;
+}
+
+.services-list li {
+  background: #3D6457;
+  padding: 0.3rem 0.6rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+}
