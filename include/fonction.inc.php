@@ -717,7 +717,8 @@ function construireCartesHtml(array $stations): string {
 function genererHtmlStations(string $code_postal = '95000'): string {
     refreshCacheSiNecessaire();
     $stations = rechercherStations($code_postal);
-    $html = construireCartesHtml($stations);
+    $html = '<h2>Stations de carburant à proximité du ' . htmlspecialchars($code_postal) . '</h2>';
+    $html .= construireCartesHtml($stations);
     
     $html .= '<script>
     function toggleDetails(id) {
