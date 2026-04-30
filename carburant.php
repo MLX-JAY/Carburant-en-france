@@ -1,61 +1,146 @@
 <?php
-// Partie 1 : Système de cache (téléchargement et mise en cache du flux XML carburant)
 declare(strict_types=1);
+
 // Configuration
 $remoteZipUrl = 'https://donnees.roulez-eco.fr/opendata/instantane';
 $xmlLocalPath = __DIR__ . '/carburants.xml';
 $zipTempPath = __DIR__ . '/temp_carburants.zip';
-$cacheValidity = 10 * 60; // 10 minutes en secondes (60s * 10)
+$cacheValidity = 10 * 60;
 
-// Vérification de la validité du cache existant
-$needsRefresh = true;
-if (file_exists($xmlLocalPath)) {
-    $xmlLastMod = filemtime($xmlLocalPath); // Timestamp de dernière modification du XML local
-    $currentTime = time();
-    
-    // Mécanisme de temps : si le fichier a été modifié il y a moins de 10 minutes,
-    // le cache est encore valide (on compare le temps actuel moins la durée de validité
-    // au temps de modification du fichier)
-    if ($currentTime - $xmlLastMod < $cacheValidity) {
-        $needsRefresh = false; // Cache valide, aucune action nécessaire
+/**
+ * Fonction 2 : Cache (L'intendant)
+ * Gère le téléchargement et l'extraction du fichier XML
+ */
+function refreshCacheSiNecessaire(): void {
+    global $remoteZipUrl, $xmlLocalPath, $zipTempPath, $cacheValidity;
+
+    $needsRefresh = true;
+    if (file_exists($xmlLocalPath)) {
+        $xmlLastMod = filemtime($xmlLocalPath);
+        $currentTime = time();
+        if ($currentTime - $xmlLastMod < $cacheValidity) {
+            $needsRefresh = false;
+        }
+    }
+
+    if ($needsRefresh) {
+        $zipContent = file_get_contents($remoteZipUrl);
+        if ($zipContent === false) {
+            return;
+        }
+        file_put_contents($zipTempPath, $zipContent);
+
+        $zip = new ZipArchive;
+        if ($zip->open($zipTempPath) === true) {
+            $xmlExtracted = false;
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $entryName = $zip->getNameIndex($i);
+                if (pathinfo($entryName, PATHINFO_EXTENSION) === 'xml') {
+                    $xmlContent = $zip->getFromIndex($i);
+                    file_put_contents($xmlLocalPath, $xmlContent);
+                    $xmlExtracted = true;
+                    break;
+                }
+            }
+            $zip->close();
+
+            if (!$xmlExtracted) {
+                return;
+            }
+        }
+
+        if (file_exists($zipTempPath)) {
+            unlink($zipTempPath);
+        }
     }
 }
 
-// Mise à jour du cache si nécessaire (fichier absent ou trop vieux)
-if ($needsRefresh) {
-    // 1. Téléchargement du ZIP depuis l'Open Data
-    $zipContent = file_get_contents($remoteZipUrl);
-    if ($zipContent === false) {
-        die('Erreur : Échec du téléchargement du ZIP');
-    }
-    file_put_contents($zipTempPath, $zipContent);
+/**
+ * Fonction 3 : Recherche (Le détective)
+ * Filtre les stations par code postal et extrait les données
+ * @return array Tableau des stations trouvées
+ */
+function rechercherStations(string $code_postal): array {
+    global $xmlLocalPath;
 
-    // 2. Extraction du XML depuis le ZIP
-    $zip = new ZipArchive;
-    if ($zip->open($zipTempPath) === true) {
-        $xmlExtracted = false;
-        // Recherche du premier fichier XML dans le ZIP
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $entryName = $zip->getNameIndex($i);
-            if (pathinfo($entryName, PATHINFO_EXTENSION) === 'xml') {
-                $xmlContent = $zip->getFromIndex($i);
-                file_put_contents($xmlLocalPath, $xmlContent);
-                $xmlExtracted = true;
-                break;
+    $prefixe_recherche = substr($code_postal, 0, 3);
+    $stations_trouvees = [];
+
+    if (!file_exists($xmlLocalPath)) {
+        return $stations_trouvees;
+    }
+
+    $xml = simplexml_load_file($xmlLocalPath);
+    if ($xml === false) {
+        return $stations_trouvees;
+    }
+
+    foreach ($xml->pdv as $pdv) {
+        $cp = (string) $pdv['cp'];
+        if (strpos($cp, $prefixe_recherche) === 0) {
+            $station = [
+                'adresse' => (string) $pdv['adresse'],
+                'ville' => (string) $pdv['ville'],
+                'cp' => $cp,
+                'carburants' => []
+            ];
+
+            foreach ($pdv->prix as $prix) {
+                $station['carburants'][] = [
+                    'nom' => (string) $prix['nom'],
+                    'valeur' => (float) $prix['valeur']
+                ];
+            }
+
+            if (!empty($station['carburants'])) {
+                $stations_trouvees[] = $station;
             }
         }
-        $zip->close();
+    }
 
-        if (!$xmlExtracted) {
-            die('Erreur : Aucun fichier XML trouvé dans le ZIP');
+    return $stations_trouvees;
+}
+
+/**
+ * Fonction 4 : Affichage (Le designer)
+ * Génère le HTML des cartes à partir du tableau de stations
+ * @return string Code HTML des stations
+ */
+function construireCartesHtml(array $stations): string {
+    if (empty($stations)) {
+        return '<p>Aucune station trouvée pour cette zone.</p>';
+    }
+
+    $html = '<div class="stations-grid">';
+
+    foreach ($stations as $station) {
+        $html .= '<article class="station-card">';
+        $html .= '<h3>' . htmlspecialchars($station['ville']) . ' (' . htmlspecialchars($station['cp']) . ')</h3>';
+        $html .= '<p class="adresse">' . htmlspecialchars($station['adresse']) . '</p>';
+        $html .= '<ul class="carburants-list">';
+
+        foreach ($station['carburants'] as $carburant) {
+            $html .= '<li>';
+            $html .= '<span class="nom-carburant">' . htmlspecialchars($carburant['nom']) . '</span>';
+            $html .= '<span class="prix-carburant">' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</span>';
+            $html .= '</li>';
         }
-    } else {
-        die('Erreur : Impossible d\'ouvrir le fichier ZIP téléchargé');
+
+        $html .= '</ul></article>';
     }
 
-    // 3. Suppression du fichier ZIP temporaire (ménage)
-    if (file_exists($zipTempPath)) {
-        unlink($zipTempPath);
-    }
+    $html .= '</div>';
+    return $html;
+}
+
+/**
+ * Fonction 1 : Orchestration (Le chef d'orchestre)
+ * Appelle les autres fonctions dans l'ordre et retourne le HTML final
+ * @return string Code HTML prêt à être affiché
+ */
+function genererHtmlStations(string $code_postal = '95000'): string {
+    refreshCacheSiNecessaire();
+    $stations = rechercherStations($code_postal);
+    return construireCartesHtml($stations);
 }
 ?>
