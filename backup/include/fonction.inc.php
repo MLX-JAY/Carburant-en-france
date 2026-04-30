@@ -200,8 +200,7 @@ function afficherDepartements(array $departements): void {
  * @brief Récupère la liste des villes d'un département à partir du fichier CSV.
  * 
  * Cette fonction lit séquentiellement le fichier CSV des communes de France
- * et retourne toutes les villes du département spécifié en utilisant
- * le préfixe du code postal.
+ * et retourne toutes les villes du département spécifié.
  * 
  * @warning Cette fonction est lente pour les fichiers volumineux.
  *          Utiliser getVillesByDepartementFast() pour de meilleures performances.
@@ -209,7 +208,7 @@ function afficherDepartements(array $departements): void {
  * @param string $depCode Code du département (ex: "28", "02", "59").
  *                         Peut être au format string ou int.
  * 
- * @return array<string, string> Tableau associatif [nom_ville => code_postal] trié par nom de ville.
+ * @return array<string> Tableau trié alphabétiquement des noms de villes.
  *                       Retourne un tableau vide si le département n'existe pas
  *                       ou si le fichier CSV n'est pas trouvé.
  * 
@@ -218,17 +217,16 @@ function afficherDepartements(array $departements): void {
  * 
  * @note Le code département est normalisé (ajout du zéro initial si nécessaire).
  *       Par exemple, "2" devient "02" pour l'Aisne.
- * @note La recherche se fait par préfixe du code postal (ex: "28" pour 28000-28999).
  * 
  * @example
  * @code
- * $villes = getVillesByDepartement("28"); // Retourne ['Lyon' => '69002', ...]
+ * $villes = getVillesByDepartement("28"); // Retourne les villes de l'Eure-et-Loir
  * @endcode
  */
 function getVillesByDepartement(string $depCode): array {
     $villes = [];
     $baseDir = dirname(__DIR__);
-    $csvPath = $baseDir . '/données/clean_postcodes.csv';
+    $csvPath = $baseDir . '/données/communes-france-2025.csv';
     
     if (!file_exists($csvPath)) {
         return $villes;
@@ -238,40 +236,36 @@ function getVillesByDepartement(string $depCode): array {
         $depCode = str_pad($depCode, 2, '0', STR_PAD_LEFT);
     }
     
-    $prefix = $depCode;
-    
     if (($handle = fopen($csvPath, "r")) !== FALSE) {
-        fgetcsv($handle, 1000, ",", '"', "\\");
+        $header = fgetcsv($handle, 1000, ",", '"', "\\");
+        $headerIndices = array_flip($header);
+        $depIndex = $headerIndices['dep_code'] ?? 12;
+        $nomIndex = $headerIndices['nom_standard'] ?? 2;
         
         while (($data = fgetcsv($handle, 1000, ",", '"', "\\")) !== FALSE) {
-            if (isset($data[2]) && isset($data[1])) {
-                $codePostal = trim($data[2]);
-                $nomVille = trim($data[1]);
-                if (strpos($codePostal, $prefix) === 0 && $nomVille !== '') {
-                    if (!isset($villes[$nomVille])) {
-                        $villes[$nomVille] = $codePostal;
-                    }
-                }
+            $csvDepCode = isset($data[$depIndex]) ? trim($data[$depIndex]) : '';
+            if ($csvDepCode == $depCode) {
+                $villes[] = $data[$nomIndex];
             }
         }
         fclose($handle);
     }
-    ksort($villes);
+    sort($villes);
     return $villes;
 }
 
 /**
- * @brief Génère le fichier d'index des positions de départ de chaque préfixe de département.
+ * @brief Génère le fichier d'index des positions de départ de chaque département.
  * 
  * Cette fonction parcourt le fichier CSV une seule fois et crée un fichier JSON
- * contenant la position de départ de chaque préfixe de code postal dans le fichier.
+ * contenant la position de départ de chaque département dans le fichier.
  * Ce fichier d'index permet ensuite un accès direct aux données avec fseek().
  * 
  * @return bool true si l'index a été généré avec succès, false en cas d'erreur.
  * 
  * @note Le fichier d'index est enregistré dans données/index_villes.json
  * @note Cette fonction n'est normalement pas appelée directement.
- *       Elle est invoquée automatiquement par getVillesByDepartementFast().
+ *       Elle est invoked automatiquement par getVillesByDepartementFast().
  * 
  * @warning Cette opération peut prendre quelques secondes lors de la première exécution.
  * 
@@ -284,7 +278,7 @@ function getVillesByDepartement(string $depCode): array {
  */
 function genererIndexVilles(): bool {
     $baseDir = dirname(__DIR__);
-    $csvPath = $baseDir . '/données/clean_postcodes.csv';
+    $csvPath = $baseDir . '/données/communes-france-2025.csv';
     $indexPath = $baseDir . '/données/index_villes.json';
     
     if (!file_exists($csvPath)) {
@@ -302,13 +296,12 @@ function genererIndexVilles(): bool {
     fgetcsv($handle, 1000, ",", '"', "\\");
     
     while (($data = fgetcsv($handle, 1000, ",", '"', "\\")) !== FALSE) {
-        if (isset($data[2])) {
-            $codePostal = trim($data[2]);
-            $prefix = substr($codePostal, 0, 2);
+        if (isset($data[12])) {
+            $depCode = trim($data[12]);
             $position = ftell($handle);
             
-            if (!isset($index[$prefix])) {
-                $index[$prefix] = $position;
+            if (!isset($index[$depCode])) {
+                $index[$depCode] = $position;
             }
         }
     }
@@ -322,18 +315,17 @@ function genererIndexVilles(): bool {
  * @brief Récupère la liste des villes d'un département avec accès optimisé.
  * 
  * Cette fonction utilise un fichier d'index (index_villes.json) pour accéder
- * directement à la position du préfixe de code postal dans le fichier CSV, sans lire
+ * directement à la position du département dans le fichier CSV, sans lire
  * toutes les lignes précédentes. C'est beaucoup plus rapide que la version
  * séquentielle pour les fichiers volumineux.
  * 
- * La recherche utilise le préfixe du code postal (ex: "28" pour 28000-28999).
  * Si le fichier d'index n'existe pas, il est généré automatiquement lors
  * du premier appel.
  * 
  * @param string $depCode Code du département (ex: "28", "02", "59").
  *                         Peut être au format string ou int.
  * 
- * @return array<string, string> Tableau associatif [nom_ville => code_postal] trié par nom de ville.
+ * @return array<string> Tableau trié alphabétiquement des noms de villes.
  *                       Retourne un tableau vide si le département n'existe pas
  *                       ou si le fichier CSV n'est pas trouvé.
  * 
@@ -346,13 +338,13 @@ function genererIndexVilles(): bool {
  * 
  * @example
  * @code
- * $villes = getVillesByDepartementFast("28"); // Retourne ['Lyon' => '69002', ...]
+ * $villes = getVillesByDepartementFast("28"); // Retourne les villes de l'Eure-et-Loir
  * @endcode
  */
 function getVillesByDepartementFast(string $depCode): array {
     $villes = [];
     $baseDir = dirname(__DIR__);
-    $csvPath = $baseDir . '/données/clean_postcodes.csv';
+    $csvPath = $baseDir . '/données/communes-france-2025.csv';
     $indexPath = $baseDir . '/données/index_villes.json';
     
     if (!file_exists($csvPath)) {
@@ -365,7 +357,7 @@ function getVillesByDepartementFast(string $depCode): array {
     
     $index = json_decode(file_get_contents($indexPath), true);
     
-    if ($index === null) {
+    if ($index === null || !isset($index[$depCode])) {
         return $villes;
     }
     
@@ -373,93 +365,27 @@ function getVillesByDepartementFast(string $depCode): array {
         $depCode = str_pad($depCode, 2, '0', STR_PAD_LEFT);
     }
     
-    $prefix = $depCode;
-    
-    if (!isset($index[$prefix])) {
-        return $villes;
-    }
-    
     $handle = fopen($csvPath, 'r');
-    fseek($handle, $index[$prefix]);
+    fseek($handle, $index[$depCode]);
     
     while (($data = fgetcsv($handle, 1000, ",", '"', "\\")) !== FALSE) {
-        if (!isset($data[2]) || !isset($data[1])) {
+        if (!isset($data[12])) {
             break;
         }
         
-        $codePostal = trim($data[2]);
-        $nomVille = trim($data[1]);
+        $currentDep = trim($data[12]);
         
-        if (strpos($codePostal, $prefix) !== 0) {
+        if ($currentDep !== $depCode) {
             break;
         }
         
-        if ($nomVille !== '' && !isset($villes[$nomVille])) {
-            $villes[$nomVille] = $codePostal;
+        if (isset($data[2])) {
+            $villes[] = $data[2];
         }
     }
     
     fclose($handle);
-    ksort($villes);
+    sort($villes);
     return $villes;
-}
-
-/**
- * @brief Récupère la géolocalisation IP de l'utilisateur via API JSON
- * 
- * Utilise l'API ip2location.io qui retourne un flux JSON avec les informations
- * de géolocalisation (ville, région, pays).
- * 
- * @return array|null Array avec ville, region, pays, ip ou null si échec.
- * 
- * @note Si l'IP est localhost (::1 ou 127.0.0.1), utilise une IP de test en France.
- * @note Utilise json_decode pour parser la réponse JSON de l'API.
- * 
- * @example
- * @code
- * $geo = getGeolocationIP();
- * if ($geo !== null) {
- *     echo $geo['ville']; // Affiche la ville détectée
- * }
- * @endcode
- */
-function getGeolocationIP(): ?array {
-    // 1. Récupérer l'IP
-    $user_ip = $_SERVER['REMOTE_ADDR'] ?? '';
-    
-    // Fallback pour localhost
-    if ($user_ip === '::1' || $user_ip === '127.0.0.1') {
-        $user_ip = '176.158.125.167'; // IP de test en France
-    }
-    
-    // 2. Appel API en JSON (ip2location.io gratuit sans clé pour tests)
-    $url = "https://api.ip2location.io/?ip=" . $user_ip;
-    
-    try {
-        $json = @file_get_contents($url);
-        
-        if ($json === false) {
-            return null;
-        }
-        
-        $data = json_decode($json, true);
-        
-        // ip2location.io retourne un champ 'error' en cas d'erreur
-        // sinon elle retourne directement les données
-        if ($data === null || isset($data['error'])) {
-            return null;
-        }
-        
-        return [
-            'ville' => $data['city_name'] ?? '',
-            'region' => $data['region_name'] ?? '',
-            'pays' => $data['country_name'] ?? '',
-            'ip' => $user_ip
-        ];
-        
-    } catch (Exception $e) {
-        error_log("Erreur géolocalisation: " . $e->getMessage());
-        return null;
-    }
 }
 ?>

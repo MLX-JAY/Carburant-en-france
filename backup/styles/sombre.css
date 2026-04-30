@@ -5,12 +5,12 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: Georgia, serif;
-  background-color: #F5F4EF;
-  color: #2A2E2C;
+  background-color: #2A2E2C;
+  color: #E8E5D0;
   line-height: 1.7;
   padding: 0 48px 80px 48px;
   background-image:
-    radial-gradient(ellipse at 10% 0%, rgba(200,220,210,0.35) 0%, transparent 60%),
+    radial-gradient(ellipse at 10% 0%, rgba(31,54,47,0.25) 0%, transparent 60%),
     radial-gradient(ellipse at 90% 100%, rgba(207,94,38,0.08) 0%, transparent 50%);
 }
 
@@ -35,7 +35,7 @@ body {
 .header-titles h1 {
   font-family: Georgia, serif;
   font-size: 2.2rem;
-  color: #1A1E1C;
+  color: #F3F0D7;
   border: none;
   padding: 0;
   letter-spacing: -0.5px;
@@ -58,11 +58,11 @@ body:not(.avec-barre-laterale) main {
   right: 20px;
   top: 180px;
   width: 220px;
-  background-color: #EAF2EE;
+  background-color: #1F362F;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  border: 1px solid #A8C8BC;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border: 1px solid #3D6457;
   z-index: 100;
 }
 
@@ -75,7 +75,7 @@ body:not(.avec-barre-laterale) main {
   letter-spacing: 0;
   margin: 0 0 16px 0;
   padding-bottom: 12px;
-  border-bottom: 1px solid #A8C8BC;
+  border-bottom: 1px solid #3D6457;
   text-align: center;
 }
 
@@ -84,12 +84,12 @@ body:not(.avec-barre-laterale) main {
   border: none;
   padding: 0;
   font-size: 0.9rem;
-  color: #1A1E1C;
+  color: #F3F0D7;
   margin-bottom: 4px;
 }
 
 .contenu-barre-laterale a {
-  color: #2A9E30;
+  color: #5DBF63;
   text-decoration: none;
   font-size: 0.85rem;
 }
@@ -101,13 +101,13 @@ body:not(.avec-barre-laterale) main {
 
 .contenu-barre-laterale hr {
   border: none;
-  border-top: 1px solid #A8C8BC;
+  border-top: 1px solid #3D6457;
   margin: 12px 0;
 }
 
 /* Menu de navigation principale */
 .navigation-principale {
-  background-color: #EAF2EE;
+  background-color: #1F362F;
   padding: 12px 24px;
   margin: 0 -48px 30px -48px;
   border-bottom: 3px solid #CF5E26;
@@ -121,7 +121,7 @@ body:not(.avec-barre-laterale) main {
 }
 
 .navigation-principale a {
-  color: rgba(26,30,28,0.80);
+  color: rgba(243,240,215,0.80);
   text-decoration: none;
   padding: 8px 16px;
   border-radius: 5px;
@@ -132,7 +132,7 @@ body:not(.avec-barre-laterale) main {
 
 .navigation-principale a:hover {
   background-color: #CF5E26;
-  color: #1A1E1C;
+  color: #F3F0D7;
 }
 
 
@@ -144,7 +144,7 @@ header {
 header h1 {
   font-family: Georgia, serif;
   font-size: 2.6rem;
-  color: #1A1E1C;
+  color: #F3F0D7;
   border-left: 6px solid #CF5E26;
   padding-left: 20px;
   letter-spacing: -0.5px;
@@ -152,11 +152,11 @@ header h1 {
 
 /* Footer */
 footer {
-  border-top: 2px solid #C8CCC9;
+  border-top: 2px solid #4A5450;
   border-left: none;
   border-radius: 0;
   font-size: 0.88rem;
-  color: #6B7268;
+  color: #A0A898;
   margin-top: 60px;
   padding-top: 24px;
 }
@@ -173,10 +173,10 @@ footer p {
 h2 {
   font-family: Georgia, serif;
   font-size: 1.6rem;
-  color: #1A1E1C;
+  color: #F3F0D7;
   margin-bottom: 20px;
   padding-bottom: 8px;
-  border-bottom: 2px solid #C8CCC9;
+  border-bottom: 2px solid #4A5450;
   position: relative;
 }
 
@@ -194,7 +194,7 @@ h3 {
   font-family: Georgia, sans-serif;
   font-size: 1rem;
   font-weight: 600;
-  color: #3D7A68;
+  color: #efefef;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin: 28px 0 12px;
@@ -202,30 +202,30 @@ h3 {
 
 /* Articles (sections) */
 article {
-  background: #FFFFFF;
-  border: 1px solid #C8CCC9;
+  background: #313835;
+  border: 1px solid #4A5450;
   border-radius: 10px;
   padding: 32px 36px;
   margin-bottom: 36px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
   transition: box-shadow 0.2s ease;
 }
 
 article:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 /* Paragraphes */
 p {
   font-family: monospace;
   font-size: 0.9rem;
-  background: #F0EFEA;
+  background: #3A3F3D;
   display: inline-block;
   padding: 6px 14px;
   border-radius: 5px;
   border-left: 3px solid #CF5E26;
   margin: 20px 0 20px 0;
-  color: #1A1E1C;
+  color: #F3F0D7;
 }
 
 /* Tableaux */
@@ -245,51 +245,51 @@ caption {
   font-family: Georgia, serif;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #1A1E1C;
+  color: #F3F0D7;
   margin-bottom: 10px;
   text-align: left;
   padding-left: 4px;
 }
 
 th {
-  background-color: #59c7a7;
-  color: #1A1E1C;
+  background-color: #2E4D42;
+  color: #F3F0D7;
   padding: 8px 14px;
   text-align: center;
   font-weight: 500;
   letter-spacing: 0.04em;
-  border: 1px solid #4DAF96;
+  border: 1px solid #5E9E89;
 }
 
 td {
-  border: 1px solid #C8CCC9;
+  border: 1px solid #4A5450;
   padding: 7px 12px;
   text-align: center;
-  background-color: #F8F7F2;
-  color: #2A2E2C;
+  background-color: #2E3432;
+  color: #E8E5D0;
   transition: background 0.15s;
 }
 
 tr>td:hover {
-  background-color: rgba(61, 138, 116, 0.12);
+  background-color: rgba(74, 122, 105, 0.15);
 }
 
 th[scope="row"] {
-  background-color: #D5E8E0;
-  color: #1A1E1C;
-  border: 1px solid #4DAF96;
+  background-color: #1e312b;
+  color: #F3F0D7;
+  border: 1px solid #5E9E89;
 }
 
 ol {
   list-style: decimal inside;
   margin-left: 20px;
-  color: #1A1E1C;
+  color: #F3F0D7;
 }
 
 ul {
   list-style: disc inside;
   margin-left: 20px;
-  color: #1A1E1C;
+  color: #F3F0D7;
 }
 
 /* Couleurs ASCII */
@@ -300,7 +300,7 @@ ul {
 }
 
 .majuscule-ascii {
-  color: #2A9E30;
+  color: #5DBF63;
   font-weight: 700;
   background-color: rgba(93, 191, 99, 0.1);
 }
@@ -323,16 +323,16 @@ ul {
   right: 20px;
   top: 40px;
   width: 220px;
-  background-color: #EAF2EE;
+  background-color: #1F362F;
   padding: 24px 20px;
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  border: 1px solid #A8C8BC;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border: 1px solid #3D6457;
   z-index: 100;
 }
 
 .sommaire-cote h3 {
-  color: #1A1E1C;
+  color: #F3F0D7;
   font-family: Georgia, serif;
   font-size: 1rem;
   font-weight: 700;
@@ -340,7 +340,7 @@ ul {
   letter-spacing: 0;
   margin: 0 0 16px 0;
   padding-bottom: 12px;
-  border-bottom: 1px solid #A8C8BC;
+  border-bottom: 1px solid #3D6457;
   text-align: center;
 }
 
@@ -353,7 +353,7 @@ ul {
 }
 
 .sommaire-cote a {
-  color: rgba(26, 30, 28, 0.75);
+  color: rgba(243, 240, 215, 0.75);
   text-decoration: none;
   font-size: 0.9rem;
   padding: 5px 10px;
@@ -363,8 +363,8 @@ ul {
 }
 
 .sommaire-cote a:hover {
-  color: #1A1E1C;
-  background-color: rgba(207, 94, 38, 0.15);
+  color: #F3F0D7;
+  background-color: rgba(207, 94, 38, 0.25);
   padding-left: 16px;
 }
 
@@ -401,8 +401,8 @@ ul {
 }
 
 .carte-td {
-  background: #FFFFFF;
-  border: 1px solid #C8CCC9;
+  background: #313835;
+  border: 1px solid #4A5450;
   border-radius: 10px;
   padding: 28px;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -410,11 +410,11 @@ ul {
 
 .carte-td:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .carte-td h3 {
-  color: #1A1E1C;
+  color: #F3F0D7;
   font-size: 1.4rem;
   margin-top: 0;
   text-transform: none;
@@ -431,8 +431,8 @@ ul {
   display: inline-block;
   margin-top: 16px;
   padding: 10px 20px;
-  background-color: #ffe1d2;
-  color: #1A1E1C;
+  background-color: #2E4D42;
+  color: #F3F0D7;
   text-decoration: none;
   border-radius: 5px;
   font-weight: 500;
@@ -448,7 +448,7 @@ ul {
 }
 
 .carte-td.bientot-disponible a {
-  background-color: #C8CCC9;
+  background-color: #4A5450;
   cursor: not-allowed;
 }
 
@@ -490,7 +490,7 @@ ul {
   background: rgba(207, 94, 38, 0.12); 
 }
 .legende-ascii .exemple-majuscule { 
-  color: #2A9E30; 
+  color: #5DBF63; 
   background: rgba(93, 191, 99, 0.10); 
 }
 .legende-ascii .exemple-minuscule { 
@@ -511,7 +511,7 @@ ul {
 }
 
 .navigation-pied a {
-  color: rgba(26, 30, 28, 0.75);
+  color: rgba(243, 240, 215, 0.75);
   text-decoration: none;
   font-size: 0.9rem;
   transition: color 0.2s;
@@ -527,13 +527,13 @@ ul {
 }
 
 .arborescence {
-  background: #EAF2EE;
-  border: 1px solid #A8C8BC;
+  background: #1F362F;
+  border: 1px solid #3D6457;
   border-radius: 10px;
   padding: 24px;
   font-family: 'Courier New', monospace;
   font-size: 0.85rem;
-  color: #2A9E30;
+  color: #5DBF63;
   overflow-x: auto;
   line-height: 1.6;
 }
@@ -551,7 +551,7 @@ ul {
 }
 
 .liens-plan h3 {
-  color: #2A9E30;
+  color: #7ED986;
   font-size: 1.3rem;
   margin-top: 24px;
   margin-bottom: 12px;
@@ -581,7 +581,7 @@ ul {
 }
 
 .liens-plan a {
-  color: #2A9E30;
+  color: #5DBF63;
   text-decoration: none;
   font-weight: 500;
 }
@@ -656,8 +656,8 @@ ul {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #EAF2EE;
-  border: 2px solid #3D8A74;
+  background: #1F362F;
+  border: 2px solid #4A7A69;
   border-radius: 12px;
   padding: 20px 24px;
   min-width: 90px;
@@ -673,7 +673,7 @@ ul {
 
 .label-compte-rebours {
   font-size: 0.8rem;
-  color: #6B7268;
+  color: #A0A898;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-top: 8px;
@@ -688,21 +688,21 @@ ul {
 .date-compte-rebours {
   margin-top: 24px;
   font-size: 0.95rem;
-  color: #6B7268;
+  color: #A0A898;
 }
 
 .compte-rebours-disponible {
   font-size: 1.5rem;
-  color: #2A9E30;
+  color: #5DBF63;
   font-weight: 600;
 }
 
 .info-construction {
   margin-top: 40px;
   padding: 20px;
-  background: #FFFFFF;
+  background: #313835;
   border-radius: 8px;
-  border-left: 4px solid #3D8A74;
+  border-left: 4px solid #4A7A69;
 }
 
 .info-construction p {
@@ -751,7 +751,7 @@ ul {
   font-size: 1.15rem;
   max-width: 700px;
   margin: 0 auto 20px;
-  color: #2A2E2C;
+  color: #E8E5D0;
   line-height: 1.8;
 }
 
@@ -761,8 +761,8 @@ ul {
 
 /* TD Cards améliorés */
 .td-card {
-  background: #FFFFFF;
-  border: 1px solid #C8CCC9;
+  background: #313835;
+  border: 1px solid #4A5450;
   border-radius: 12px;
   padding: 28px;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -777,14 +777,14 @@ ul {
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #CF5E26, #2A9E30);
+  background: linear-gradient(90deg, #CF5E26, #5DBF63);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .td-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 
 .td-card:hover::before {
@@ -812,8 +812,8 @@ ul {
 
 .icone-td6 {
   background: rgba(93, 191, 99, 0.2);
-  color: #2A9E30;
-  border: 2px solid #2A9E30;
+  color: #5DBF63;
+  border: 2px solid #5DBF63;
 }
 
 .icone-td7 {
@@ -824,14 +824,14 @@ ul {
 
 .icone-td8 {
   background: rgba(160, 168, 152, 0.2);
-  color: #6B7268;
-  border: 2px solid #6B7268;
+  color: #A0A898;
+  border: 2px solid #A0A898;
 }
 
 .icone-td9 {
   background: rgba(160, 168, 152, 0.2);
-  color: #6B7268;
-  border: 2px solid #6B7268;
+  color: #A0A898;
+  border: 2px solid #A0A898;
 }
 
 .icone-info {
@@ -840,7 +840,7 @@ ul {
 }
 
 .carte-td h3 {
-  color: #1A1E1C;
+  color: #F3F0D7;
   font-size: 1.35rem;
   margin-top: 0;
   margin-bottom: 12px;
@@ -852,7 +852,7 @@ ul {
   border: none;
   padding: 0;
   font-size: 0.95rem;
-  color: #6B7268;
+  color: #A0A898;
 }
 
 .bouton-td {
@@ -860,7 +860,7 @@ ul {
   margin-top: 18px;
   padding: 12px 24px;
   background-color: #CF5E26;
-  color: #1A1E1C;
+  color: #F3F0D7;
   text-decoration: none;
   border-radius: 6px;
   font-weight: 500;
@@ -873,11 +873,11 @@ ul {
 }
 
 .bouton-td-bientot {
-  background-color: #3D8A74;
+  background-color: #4A7A69;
 }
 
 .bouton-td-bientot:hover {
-  background-color: #A8C8BC;
+  background-color: #3D6457;
 }
 
 .bouton-td-info {
@@ -893,7 +893,7 @@ ul {
 }
 
 .carte-td.bientot-disponible::before {
-  background: linear-gradient(90deg, #3D8A74, #6B7268);
+  background: linear-gradient(90deg, #4A7A69, #A0A898);
 }
 
 /* Features section */
@@ -916,8 +916,8 @@ ul {
 }
 
 .fonctionnalite {
-  background: #FFFFFF;
-  border: 1px solid #C8CCC9;
+  background: #313835;
+  border: 1px solid #4A5450;
   border-radius: 10px;
   padding: 24px;
   transition: transform 0.2s ease;
@@ -933,7 +933,7 @@ ul {
 }
 
 .fonctionnalite h4 {
-  color: #1A1E1C;
+  color: #F3F0D7;
   font-family: Georgia, serif;
   font-size: 1.1rem;
   margin-bottom: 8px;
@@ -944,7 +944,7 @@ ul {
   border: none;
   padding: 0;
   font-size: 0.9rem;
-  color: #6B7268;
+  color: #A0A898;
 }
 
 .carte-info {
@@ -952,7 +952,7 @@ ul {
 }
 
 .carte-info::before {
-  background: linear-gradient(90deg, #5B9BD5, #2A9E30);
+  background: linear-gradient(90deg, #5B9BD5, #5DBF63);
 }
 
 /* Palette Web */
@@ -962,9 +962,9 @@ ul {
   gap: 4px;
   margin: 20px 0;
   padding: 16px;
-  background: #EAF2EE;
+  background: #1F362F;
   border-radius: 10px;
-  border: 2px solid #3D8A74;
+  border: 2px solid #4A7A69;
 }
 
 .rangee-palette {
@@ -978,12 +978,12 @@ ul {
   border-radius: 4px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .couleur-palette:hover {
   transform: scale(1.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   z-index: 10;
   position: relative;
 }
@@ -992,10 +992,10 @@ ul {
 .etimologie {
   margin: 16px 0;
   padding: 20px;
-  background: #EAF2EE;
-  border: 2px solid #3D8A74;
+  background: #1F362F;
+  border: 2px solid #4A7A69;
   border-radius: 8px;
-  box-shadow: inset 0 1px 0 rgba(0,0,0,0.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .etimologie p {
@@ -1003,19 +1003,20 @@ ul {
   border: none;
   padding: 0;
   font-size: 1rem;
-  color: #2A2E2C;
+  color: #E8E5D0;
   line-height: 1.8;
   display: block;
 }
 
 .etimologie strong {
-  color: #000000;
+  color: #E8E5D0;
 }
 
 .etimologie em {
-  color: #000000;
+  color: #5DBF63;
   font-style: italic;
 }
+
 
 /* Positionnement des contrôles en haut à droite */
 
@@ -1052,16 +1053,16 @@ ul {
     font-weight: bold;
     padding: 5px 12px;
     border: 1px solid #CF5E26;
-    color: #000000;
+    color: #ffdac8;
     border-radius: 4px;
     transition: all 0.2s ease;
-    background: #ffe1d2;
+    background: transparent;
 }
 
 /* État "Sélectionné" (Choix unique) */
 .btn-choix.active {
-    background-color: #CF5E26;
-    color: #FFFFFF !important;
+    background-color: #6b3215;
+    color: #ffffff !important;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     cursor: default;
 }
@@ -1085,13 +1086,6 @@ ul {
     height: 16px;
 }
 
-/* État "Sélectionné" pour les deux types */
-.btn-choix.active {
-    background-color: #6b3215;
-    color: #FFFFFF !important;
-    cursor: default;
-}
-
 .btn-drapeau.active {
     opacity: 1;
     border-color: #CF5E26; /* Encadre le drapeau sélectionné */
@@ -1104,7 +1098,6 @@ ul {
     opacity: 1;
     transform: translateY(-1px);
 }
-
 
 fieldset {
     border: 1px solid #4A5450;
@@ -1156,7 +1149,7 @@ aside {
   top: 60px;
   right: 20px;
   width: 220px;
-  background-color: #F3F0D7;
+  background-color: #1F362F;
   padding: 8px 20px;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.3);
@@ -1167,7 +1160,7 @@ aside {
 }
 
 .aside a{
-  color: #000000; 
+  color: rgba(243,240,215,0.80); 
   text-decoration: none; 
   font-size: 0.9rem; 
   display: block; 
@@ -1236,13 +1229,13 @@ aside {
 .tooltip-region {
   display: none;
   position: absolute;
-  background: #EAF2EE;
-  color: #1A1E1C;
+  background: #1F362F;
+  color: #F3F0D7;
   padding: 8px 14px;
   border-radius: 6px;
   font-size: 0.9rem;
-  border: 1px solid #A8C8BC;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #3D6457;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   pointer-events: none;
   z-index: 1000;
   white-space: nowrap;
@@ -1258,7 +1251,7 @@ aside {
   max-width: 400px;
   height: auto;
   border-radius: 10px;
-  border: 2px solid #A8C8BC;
+  border: 2px solid #3D6457;
 }
 
 /* Grille des départements */
@@ -1271,8 +1264,8 @@ aside {
 
 /* Carte département */
 .carte-departement {
-  background: #FFFFFF;
-  border: 1px solid #C8CCC9;
+  background: #313835;
+  border: 1px solid #4A5450;
   border-radius: 10px;
   padding: 24px;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -1281,14 +1274,14 @@ aside {
 
 .carte-departement:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 /* Numéro du département mis en évidence */
 .departement-numero {
   display: inline-block;
   background: #CF5E26;
-  color: #FFFFFF;
+  color: #F3F0D7;
   font-size: 1.8rem;
   font-weight: 700;
   padding: 8px 16px;
@@ -1297,7 +1290,7 @@ aside {
 }
 
 .departement-nom {
-  color: #1A1E1C;
+  color: #F3F0D7;
   font-size: 1.2rem;
   margin: 0 0 16px 0;
   font-family: Georgia, serif;
@@ -1308,8 +1301,8 @@ aside {
 .bouton-departement {
   display: inline-block;
   padding: 10px 20px;
-  background-color: #ffe1d2;
-  color: #1A1E1C;
+  background-color: #2E4D42;
+  color: #F3F0D7;
   text-decoration: none;
   border-radius: 5px;
   font-weight: 500;
@@ -1324,8 +1317,8 @@ aside {
 .form-villes {
   margin-top: 30px;
   padding: 20px;
-  background: #FFFFFF;
-  border: 1px solid #C8CCC9;
+  background: #313835;
+  border: 1px solid #4A5450;
   border-radius: 10px;
 }
 
@@ -1333,24 +1326,24 @@ aside {
   display: block;
   margin-bottom: 10px;
   font-weight: 600;
-  color: #1A1E1C;
+  color: #F3F0D7;
 }
 
 .form-villes select {
   width: 100%;
   padding: 12px;
   font-size: 1rem;
-  border: 1px solid #C8CCC9;
+  border: 1px solid #4A5450;
   border-radius: 6px;
-  background: #F8F7F2;
-  color: #1A1E1C;
+  background: #2E3432;
+  color: #F3F0D7;
   margin-bottom: 15px;
 }
 
 .form-villes .bouton-valider {
   padding: 12px 24px;
   background: #CF5E26;
-  color: #FFFFFF;
+  color: #F3F0D7;
   border: none;
   border-radius: 6px;
   font-size: 1rem;
@@ -1365,105 +1358,7 @@ aside {
 .message-erreur {
   margin-top: 20px;
   padding: 15px;
-  background: #F0EFEA;
+  background: #3A3F3D;
   border-left: 4px solid #CF5E26;
-  color: #1A1E1C;
-}
-
-/* Géolocalisation détectée */
-.geo-detected {
-  padding: 15px 20px;
-  margin-bottom: 20px;
-  border-radius: 8px;
-  border-left: 4px solid #CF5E26;
-  background: #EAF2EE;
-  color: #1A1E1C;
-}
-
-.geo-detected p {
-  margin: 0 0 10px 0;
-}
-
-.bouton-geo {
-  padding: 8px 16px;
-  background: #CF5E26;
-  color: #FFFFFF;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-
-.bouton-geo:hover {
-  background: #B5521F;
-}
-
-/* Stations carburant - Cartes */
-.stations-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-  padding: 20px 0;
-}
-
-.station-card {
-  background: #FFFFFF;
-  border: 1px solid #C8CCC9;
-  border-radius: 10px;
-  padding: 24px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.07);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.station-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.12);
-}
-
-.station-card h3 {
-  margin-top: 0;
-  color: #1A1E1C;
-  font-size: 1.2rem;
-  border-bottom: 2px solid #CF5E26;
-  padding-bottom: 5px;
-  font-family: Georgia, serif;
-}
-
-.station-card .adresse {
-  color: #6B7268;
-  font-size: 0.9rem;
-  margin-bottom: 15px;
-  background: transparent;
-  border: none;
-  padding: 0;
-  display: block;
-}
-
-.carburants-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.carburants-list li {
-  display: flex;
-  justify-content: space-between;
-  padding: 5px 0;
-  border-bottom: 1px dashed #C8CCC9;
-  color: #2A2E2C;
-}
-
-.carburants-list li:last-child {
-  border-bottom: none;
-}
-
-.nom-carburant {
-  font-weight: bold;
-  color: #1A1E1C;
-}
-
-.prix-carburant {
-  color: #2A9E30;
-  font-weight: bold;
+  color: #E8E5D0;
 }
