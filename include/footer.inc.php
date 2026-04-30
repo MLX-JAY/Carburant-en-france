@@ -1,4 +1,16 @@
 
+    <a href="#top"><img src="images/haut.png" class="img-fixe" id="imageScroll" alt="Haut de page" /></a>
+    <script>
+        const image = document.getElementById("imageScroll");
+
+        window.addEventListener("scroll", () => {
+            if (window.scrollY > 200) { // apparaît après 200px de scroll
+                image.classList.add("visible");
+            } else {
+                image.classList.remove("visible");
+            }
+        });
+    </script>
     </main>
 
     <footer>

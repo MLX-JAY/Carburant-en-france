@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 // Configuration
 $remoteZipUrl = 'https://donnees.roulez-eco.fr/opendata/instantane';
-$xmlLocalPath = __DIR__ . '/carburants.xml';
-$zipTempPath = __DIR__ . '/temp_carburants.zip';
+$xmlLocalPath = __DIR__ . '/données/carburants.xml';
+$zipTempPath = __DIR__ . '/données/temp_carburants.zip';
 $cacheValidity = 10 * 60;
 
 /**

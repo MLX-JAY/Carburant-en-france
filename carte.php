@@ -12,6 +12,10 @@ require_once 'include/fonction.inc.php';
 $lang = $_GET['lang'] ?? 'fr';
 $index = $_GET['index'] ?? null;
 $dep = $_GET['dep'] ?? null;
+$afficher = $_GET['afficher'] ?? null;
+$afficherStations = ($afficher === 'stations' || $afficher === 'prix') ? 'stations' : null;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$tri = $_GET['tri'] ?? '';
 
 // Géolocalisation IP
 $geoData = getGeolocationIP();
@@ -25,7 +29,7 @@ if ($index !== null && isset($regionsDepartements[$index])) {
 }
 
 $villesHTML = '';
-if ($dep !== null) {
+if ($dep !== null && $afficher === 'villes') {
     $villes = getVillesByDepartementFast($dep);
     
     if (empty($villes)) {
@@ -35,6 +39,7 @@ if ($dep !== null) {
         ?>
         <form method="get" class="form-villes" id="form-villes">
             <input type="hidden" name="dep" value="<?= htmlspecialchars($dep) ?>">
+            <input type="hidden" name="afficher" value="prix">
             <input type="hidden" name="code_postal" value="" id="code_postal">
             <input type="hidden" name="lang" value="<?= $lang ?>">
             <input type="hidden" name="style" value="<?= $style ?>">
@@ -62,20 +67,28 @@ if ($dep !== null) {
         $villesHTML = ob_get_clean();
     }
 }
+
+$stationsHTML = '';
+if ($afficherStations === 'stations' && $dep !== null) {
+    $stationsHTML = afficherStationsParDepartement($dep, $page, $tri, $index !== null ? (int)$index : null);
+}
 ?>
+
 <article id=exo-1>
     <h2>Géolocalisation IP</h2>
     <p>
         Nous avons utilisé une API de géolocalisation IP pour détecter votre emplacement approximatif. Si les informations sont correctes, 
         vous pouvez pré-remplir les champs de sélection pour accéder rapidement aux prix du carburant de votre région.
     </p>
-    <?php if ($geoData !== null): ?>
+    <?php if ($geoData !== null):
+    $regionIndex = array_search($geoData['region'], $regionsNoms);
+?>
     <div class="geo-detected" role="alert">
         <p>Nous avons détecté que vous êtes à <b><?= htmlspecialchars($geoData['ville']) ?></b>, dans la région 
            <b><?= htmlspecialchars($geoData['region']) ?></b>. Est-ce correct ?</p>
         <form method="get" class="geo-form">
             <input type="hidden" name="ville" value="<?= htmlspecialchars($geoData['ville']) ?>">
-            <input type="hidden" name="dep" value="<?= htmlspecialchars($geoData['region']) ?>">
+            <input type="hidden" name="index" value="<?= $regionIndex !== false ? $regionIndex : '' ?>">
             <input type="hidden" name="lang" value="<?= $lang ?>">
             <input type="hidden" name="style" value="<?= $style ?>">
             <button type="submit" class="bouton-geo">Oui, pré-remplir</button>
@@ -113,10 +126,11 @@ if ($dep !== null) {
 
     <?= $departementsHTML ?>
     <?= $villesHTML ?>
+    <?= $stationsHTML ?>
 </article>
 
 <script>
-    document.querySelectorAll('area').forEach(area => {
+    document.querySelectorAll('map[name="map_regions"] area').forEach(area => {
         area.addEventListener('mouseenter', (e) => {
             const tooltip = document.getElementById('tooltip-region');
             tooltip.textContent = area.getAttribute('title');

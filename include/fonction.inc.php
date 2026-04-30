@@ -189,7 +189,10 @@ function afficherDepartements(array $departements): void {
         echo '<article class="carte-departement" id="departements">';
         echo '<span class="departement-numero">' . $dept['id'] . '</span>';
         echo '<h3 class="departement-nom">' . htmlspecialchars($dept['nom']) . '</h3>';
-        echo '<a href="?dep=' . $dept['id'] . '&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#form-villes" class="bouton-departement">Voir les villes</a>';
+        echo '<div class="boutons-departement">';
+        echo '<a href="?dep=' . $dept['id'] . '&afficher=villes&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#form-villes" class="bouton-departement">Voir les villes</a>';
+        echo '<a href="?dep=' . $dept['id'] . '&afficher=stations&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#stations-section" class="bouton-departement">Voir les stations</a>';
+        echo '</div>';
         echo '</article>';
     }
     
@@ -301,11 +304,13 @@ function genererIndexVilles(): bool {
     
     fgetcsv($handle, 1000, ",", '"', "\\");
     
-    while (($data = fgetcsv($handle, 1000, ",", '"', "\\")) !== FALSE) {
-        if (isset($data[2])) {
+    while (!feof($handle)) {
+        $position = ftell($handle);
+        $data = fgetcsv($handle, 1000, ",", '"', "\\");
+        
+        if ($data !== FALSE && isset($data[2])) {
             $codePostal = trim($data[2]);
             $prefix = substr($codePostal, 0, 2);
-            $position = ftell($handle);
             
             if (!isset($index[$prefix])) {
                 $index[$prefix] = $position;
@@ -461,5 +466,361 @@ function getGeolocationIP(): ?array {
         error_log("Erreur géolocalisation: " . $e->getMessage());
         return null;
     }
+}
+
+/**
+ * @brief Télécharge et extrait le fichier XML des prix des carburants.
+ * 
+ * Cette fonction vérifie si le fichier XML local est expire (plus vieux que cacheValidity).
+ * Si nécessaire, elle telecharge le fichier ZIP depuis la source officielle,
+ * l'extrait et sauvegard le XML localement.
+ * 
+ * @note Le fichier XML est telecharge depuis donnees.roulez-eco.fr
+ * @note La validite du cache est definie a 10 minutes par defaut
+ * 
+ * @return void
+ * 
+ * @global string $remoteZipUrl URL du fichier ZIP distant
+ * @global string $xmlLocalPath Chemin local du fichier XML
+ * @global string $zipTempPath Chemin temporaire pour le ZIP
+ * @global int $cacheValidity Duree de validite du cache en secondes
+ */
+function refreshCacheSiNecessaire(): void {
+    $baseDir = dirname(__DIR__);
+    $remoteZipUrl = 'https://donnees.roulez-eco.fr/opendata/instantane';
+    $xmlLocalPath = $baseDir . '/données/carburants.xml';
+    $zipTempPath = $baseDir . '/temp_carburants.zip';
+    $cacheValidity = 10 * 60;
+
+    $needsRefresh = true;
+    if (file_exists($xmlLocalPath)) {
+        $xmlLastMod = filemtime($xmlLocalPath);
+        $currentTime = time();
+        if ($currentTime - $xmlLastMod < $cacheValidity) {
+            $needsRefresh = false;
+        }
+    }
+
+    if ($needsRefresh) {
+        $zipContent = file_get_contents($remoteZipUrl);
+        if ($zipContent === false) {
+            return;
+        }
+        file_put_contents($zipTempPath, $zipContent);
+
+        $zip = new ZipArchive;
+        if ($zip->open($zipTempPath) === true) {
+            $xmlExtracted = false;
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $entryName = $zip->getNameIndex($i);
+                if (pathinfo($entryName, PATHINFO_EXTENSION) === 'xml') {
+                    $xmlContent = $zip->getFromIndex($i);
+                    file_put_contents($xmlLocalPath, $xmlContent);
+                    $xmlExtracted = true;
+                    break;
+                }
+            }
+            $zip->close();
+
+            if (!$xmlExtracted) {
+                return;
+            }
+        }
+
+        if (file_exists($zipTempPath)) {
+            unlink($zipTempPath);
+        }
+    }
+}
+
+/**
+ * @brief Recherche les stations de carburant par code postal.
+ * 
+ * Cette fonction filtre les stations du fichier XML en fonction du prefixe
+ * du code postal (3 premiers chiffres) et extrait les informations suivantes :
+ * - Adresse de la station
+ * - Ville et code postal
+ * - Liste des carburants disponibles avec leurs prix
+ * 
+ * @param string $code_postal Code postal pour la recherche (ex: "28000")
+ * 
+ * @return array Station trouvees avec leurs informations.
+ *               Tableau vide si aucune station ou erreur.
+ * 
+ * @note La recherche utilise les 3 premiers chiffres du code postal
+ * @note Utilise SimpleXML pour parser le fichier XML des carburants
+ * 
+ * @example
+ * @code
+ * $stations = rechercherStations("28000"); // Retourne les stations autour de Chartres
+ * @endcode
+ * 
+ * @see refreshCacheSiNecessaire() Doit etre appele avant cette fonction
+ */
+function rechercherStations(string $code_postal): array {
+    $baseDir = dirname(__DIR__);
+    $xmlLocalPath = $baseDir . '/données/carburants.xml';
+
+    $prefixe_recherche = substr($code_postal, 0, 3);
+    $stations_trouvees = [];
+
+    if (!file_exists($xmlLocalPath)) {
+        return $stations_trouvees;
+    }
+
+    $xml = simplexml_load_file($xmlLocalPath);
+    if ($xml === false) {
+        return $stations_trouvees;
+    }
+
+    foreach ($xml->pdv as $pdv) {
+        $cp = (string) $pdv['cp'];
+        if (strpos($cp, $prefixe_recherche) === 0) {
+            $station = [
+                'adresse' => (string) $pdv->adresse,
+                'ville' => (string) $pdv->ville,
+                'cp' => $cp,
+                'carburants' => []
+            ];
+
+            foreach ($pdv->prix as $prix) {
+                $station['carburants'][] = [
+                    'nom' => (string) $prix['nom'],
+                    'valeur' => (float) $prix['valeur']
+                ];
+            }
+
+            if (!empty($station['carburants'])) {
+                $stations_trouvees[] = $station;
+            }
+        }
+    }
+
+    return $stations_trouvees;
+}
+
+/**
+ * @brief Genere le HTML des cartes de stations de carburant.
+ * 
+ * Cette fonction prend un tableau de stations et genere le code HTML
+ * pour les afficher sous forme de cartes avec :
+ * - Titre avec ville et code postal
+ * - Adresse de la station
+ * - Liste des carburants disponibles avec leurs prix
+ * 
+ * @param array $stations Tableau des stations a afficher.
+ * 
+ * @return string Code HTML des cartes de stations.
+ *                Retourne un message si aucune station trouvee.
+ * 
+ * @note Utilise les classes CSS : stations-grid, station-card, carburants-list
+ * 
+ * @example
+ * @code
+ * $html = construireCartesHtml($stations);
+ * echo $html;
+ * @endcode
+ */
+function construireCartesHtml(array $stations): string {
+    if (empty($stations)) {
+        return '<p class="message-erreur">Aucune station trouvee pour cette zone.</p>';
+    }
+
+    $html = '<div class="stations-grid">';
+
+    foreach ($stations as $station) {
+        $html .= '<article class="station-card">';
+        $html .= '<h3>' . htmlspecialchars($station['ville']) . ' (' . htmlspecialchars($station['cp']) . ')</h3>';
+        $html .= '<p class="station-adresse">' . htmlspecialchars($station['adresse']) . '</p>';
+        $html .= '<ul class="carburants-list">';
+
+        foreach ($station['carburants'] as $carburant) {
+            $html .= '<li class="carburant-item">';
+            $html .= '<span class="nom-carburant">' . htmlspecialchars($carburant['nom']) . '</span>';
+            $html .= '<span class="prix-carburant">' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</span>';
+            $html .= '</li>';
+        }
+
+        $html .= '</ul></article>';
+    }
+
+    $html .= '</div>';
+    return $html;
+}
+
+/**
+ * @brief Fonction principale d'orchestration pour afficher les stations.
+ * 
+ * Cette fonction coordonne l'ensemble du processus :
+ * 1. Verifie et telecharge le cache XML si necessaire
+ * 2. Recherche les stations par code postal
+ * 3. Genere le HTML pour l'affichage
+ * 
+ * @param string $code_postal Code postal pour la recherche (defaut: "95000")
+ * 
+ * @return string Code HTML pret a etre affiche
+ * 
+ * @example
+ * @code
+ * $html = genererHtmlStations("28000");
+ * echo $html;
+ * @endcode
+ * 
+ * @see refreshCacheSiNecessaire()
+ * @see rechercherStations()
+ * @see construireCartesHtml()
+ */
+function genererHtmlStations(string $code_postal = '95000'): string {
+    refreshCacheSiNecessaire();
+    $stations = rechercherStations($code_postal);
+    return construireCartesHtml($stations);
+}
+
+/**
+ * @brief Affiche les stations de carburant d'un département avec pagination et tri.
+ * 
+ * Cette fonction orchestre l'affichage des stations pour un département donne :
+ * - Recherche les stations par prefixe de code postal
+ * - Applique le tri par prix si demande
+ * - Gere la pagination (20 stations par page)
+ * - Genere le HTML complet avec en-tete et pagination
+ * 
+ * @param string $depCode Code du departement (ex: "28")
+ * @param int $page Numero de page (defaut: 1)
+ * @param string $tri Type de tri ('prix' pour tri croissant par prix)
+ * 
+ * @return string Code HTML des stations avec pagination et outils de tri.
+ * 
+ * @note Affiche 20 stations par page
+ * @note Le tri s'applique sur le premier carburant disponible (Gazole le plus souvent)
+ * 
+ * @example
+ * @code
+ * echo afficherStationsParDepartement("28", 1, "prix"); // Affiche les stations du 28 triees par prix
+ * @endcode
+ */
+function afficherStationsParDepartement(string $depCode, int $page = 1, string $tri = '', ?int $index = null): string {
+    // Normaliser le code departement
+    if (strlen($depCode) == 1 && is_numeric($depCode)) {
+        $depCode = str_pad($depCode, 2, '0', STR_PAD_LEFT);
+    }
+    
+    // Rechercher les stations (utilise le prefixe 3 chiffres pour le departement)
+    $prefixe = $depCode; // Ex: 280 pour le departement 28
+    refreshCacheSiNecessaire();
+    $stations = rechercherStations($prefixe);
+    
+    if (empty($stations)) {
+        return '<p class="message-erreur">Aucune station trouvee pour ce departement.</p>';
+    }
+    
+    // Tri par prix si demande
+    if ($tri === 'prix') {
+        usort($stations, function($a, $b) {
+            $prixA = $a['carburants'][0]['valeur'] ?? 999;
+            $prixB = $b['carburants'][0]['valeur'] ?? 999;
+            return $prixA <=> $prixB;
+        });
+    }
+    
+    // Tri alphabetique si demande
+    if ($tri === 'az') {
+        usort($stations, function($a, $b) {
+            return strcasecmp($a['ville'], $b['ville']);
+        });
+    }
+    
+    // Pagination
+    $stationsParPage = 10;
+    $totalStations = count($stations);
+    $totalPages = max(1, ceil($totalStations / $stationsParPage));
+    $page = max(1, min($page, $totalPages));
+    $debut = ($page - 1) * $stationsParPage;
+    $stationsPage = array_slice($stations, $debut, $stationsParPage);
+    
+    // Obtenir le nom du departement
+    $nomDepartement = '';
+    foreach ($GLOBALS['regionsDepartements'] as $region) {
+        foreach ($region as $dept) {
+            if ($dept['id'] === $depCode || $dept['id'] === (int)$depCode) {
+                $nomDepartement = $dept['nom'];
+                break 2;
+            }
+        }
+    }
+    
+    // Generation du HTML
+    $html = '<div class="stations-section" id="stations-section">';
+    
+    // En-tete
+    $html .= '<div class="stations-header">';
+    $html .= '<h2>Stations essence - ' . htmlspecialchars($nomDepartement) . ' (' . $depCode . ')</h2>';
+    $html .= '<p class="stations-compteur">' . $totalStations . ' station(s) trouvee(s)</p>';
+    $html .= '<div class="stations-toolbar">';
+    $triActif = $tri === 'prix' ? 'active' : '';
+    $triAzActif = $tri === 'az' ? 'active' : '';
+    $indexParam = $index !== null ? '&index=' . $index : '';
+    $html .= '<a href="?dep=' . $depCode . '&afficher=stations&tri=prix' . $indexParam . '#stations-section" class="btn-tri ' . $triActif . '">Trier par prix ↗</a>';
+    $html .= '<a href="?dep=' . $depCode . '&afficher=stations&tri=az' . $indexParam . '#stations-section" class="btn-tri ' . $triAzActif . '">Trier A-Z ↗</a>';
+    $html .= '</div>';
+    $html .= '</div>';
+    
+    // Grille des stations
+    $html .= '<div class="stations-grid">';
+    foreach ($stationsPage as $station) {
+        $html .= '<article class="station-card">';
+        
+        // Header avec ville et code postal
+        $html .= '<div class="station-header">';
+        $html .= '<h3>' . htmlspecialchars($station['ville']) . ' <span class="cp">(' . htmlspecialchars($station['cp']) . ')</span></h3>';
+        $html .= '</div>';
+        
+        // Body avec adresse
+        $html .= '<div class="station-body">';
+        $html .= '<p class="station-adresse">' . htmlspecialchars($station['adresse']) . '</p>';
+        $html .= '</div>';
+        
+        // Prix des carburants
+        $html .= '<div class="station-prix">';
+        foreach ($station['carburants'] as $carburant) {
+            $html .= '<div class="carburant-prix">';
+            $html .= '<span class="nom-carburant">' . htmlspecialchars($carburant['nom']) . '</span>';
+            $html .= '<span class="valeur-prix">' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</span>';
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+        
+        $html .= '</article>';
+    }
+    $html .= '</div>';
+    
+    // Pagination
+    if ($totalPages > 1) {
+        $html .= '<div class="stations-pagination">';
+        
+        $baseUrl = '?dep=' . $depCode . '&afficher=stations';
+        if ($tri) {
+            $baseUrl .= '&tri=' . $tri;
+        }
+        if ($index !== null) {
+            $baseUrl .= '&index=' . $index;
+        }
+        
+        if ($page > 1) {
+            $html .= '<a href="' . $baseUrl . '&page=' . ($page - 1) . '#stations-section" class="btn-page">← Preccedent</a>';
+        }
+        
+        $html .= '<span class="page-info">Page ' . $page . ' / ' . $totalPages . '</span>';
+        
+        if ($page < $totalPages) {
+            $html .= '<a href="' . $baseUrl . '&page=' . ($page + 1) . '#stations-section" class="btn-page">Suivant →</a>';
+        }
+        
+        $html .= '</div>';
+    }
+    
+    $html .= '</div>';
+    
+    return $html;
 }
 ?>
