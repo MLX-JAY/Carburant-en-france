@@ -1362,32 +1362,3 @@ aside {
   border-left: 4px solid #CF5E26;
   color: #E8E5D0;
 }
-
-/* Géolocalisation détectée */
-.geo-detected {
-  padding: 15px 20px;
-  margin-bottom: 20px;
-  border-radius: 8px;
-  border-left: 4px solid #CF5E26;
-  background: #1F362F;
-  color: #F3F0D7;
-}
-
-.geo-detected p {
-  margin: 0 0 10px 0;
-}
-
-.bouton-geo {
-  padding: 8px 16px;
-  background: #CF5E26;
-  color: #FFFFFF;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-
-.bouton-geo:hover {
-  background: #B5521F;
-}

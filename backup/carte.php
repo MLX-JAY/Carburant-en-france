@@ -13,9 +13,6 @@ $lang = $_GET['lang'] ?? 'fr';
 $index = $_GET['index'] ?? null;
 $dep = $_GET['dep'] ?? null;
 
-// Géolocalisation IP
-$geoData = getGeolocationIP();
-
 $departementsHTML = '';
 if ($index !== null && isset($regionsDepartements[$index])) {
     ob_start();
@@ -35,61 +32,24 @@ if ($dep !== null) {
         ?>
         <form method="get" class="form-villes" id="form-villes">
             <input type="hidden" name="dep" value="<?= htmlspecialchars($dep) ?>">
-            <input type="hidden" name="code_postal" value="" id="code_postal">
             <input type="hidden" name="lang" value="<?= $lang ?>">
             <input type="hidden" name="style" value="<?= $style ?>">
             <label for="ville">Sélectionnez une ville :</label>
             <select name="ville" id="ville">
-                <?php foreach ($villes as $nom => $code): ?>
-                    <option value="<?= htmlspecialchars($nom) ?>" data-code-postal="<?= htmlspecialchars($code) ?>"><?= htmlspecialchars($nom) ?> (<?= htmlspecialchars($code) ?>)</option>
+                <?php foreach ($villes as $ville): ?>
+                    <option value="<?= htmlspecialchars($ville) ?>"><?= htmlspecialchars($ville) ?></option>
                 <?php endforeach; ?>
             </select>
             <button type="submit" class="bouton-valider">Afficher les prix</button>
         </form>
-        <script>
-            document.getElementById('ville').addEventListener('change', function() {
-                var selectedOption = this.options[this.selectedIndex];
-                var codePostal = selectedOption.getAttribute('data-code-postal');
-                document.getElementById('code_postal').value = codePostal;
-            });
-            // Initialize on page load
-            var firstOption = document.getElementById('ville').options[0];
-            if (firstOption) {
-                document.getElementById('code_postal').value = firstOption.getAttribute('data-code-postal');
-            }
-        </script>
         <?php
         $villesHTML = ob_get_clean();
     }
 }
 ?>
-<article id=exo-1>
-    <h2>Géolocalisation IP</h2>
-    <p>
-        Nous avons utilisé une API de géolocalisation IP pour détecter votre emplacement approximatif. Si les informations sont correctes, 
-        vous pouvez pré-remplir les champs de sélection pour accéder rapidement aux prix du carburant de votre région.
-    </p>
-    <?php if ($geoData !== null): ?>
-    <div class="geo-detected" role="alert">
-        <p>Nous avons détecté que vous êtes à <b><?= htmlspecialchars($geoData['ville']) ?></b>, dans la région 
-           <b><?= htmlspecialchars($geoData['region']) ?></b>. Est-ce correct ?</p>
-        <form method="get" class="geo-form">
-            <input type="hidden" name="ville" value="<?= htmlspecialchars($geoData['ville']) ?>">
-            <input type="hidden" name="dep" value="<?= htmlspecialchars($geoData['region']) ?>">
-            <input type="hidden" name="lang" value="<?= $lang ?>">
-            <input type="hidden" name="style" value="<?= $style ?>">
-            <button type="submit" class="bouton-geo">Oui, pré-remplir</button>
-        </form>
-    </div>
-    <?php endif; ?>
-</article>
-<article id="exo-2">
+
+<article id="exo-1">
     <h2>Carte de la France - Sélectionnez votre région</h2>
-
-    <p>
-        Cliquez sur une région de la carte pour voir les départements correspondants, puis sélectionnez votre ville pour afficher les prix du carburant.
-    </p>
-
 
     <img src="images/carte_France.svg" alt="Carte de la France" usemap="#map_regions" style="max-width: 100%; height: auto;">
 
