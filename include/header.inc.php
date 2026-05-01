@@ -4,13 +4,14 @@
     $pageAuthor = $pageAuthor;
     $currentPage = $currentPage ;
     
-    // choix du style mais par défaut c'est sombre
-    $style = 'standard';
-    if (!empty($_GET['style']) && $_GET['style'] === 'alternatif') {
-        $style = 'alternatif';
+    // Gestion du thème (sombre/clair) via cookie et GET
+    $style = $_GET['style'] ?? $_COOKIE['theme'] ?? 'clair';
+    if (!in_array($style, ['sombre', 'clair'])) {
+        $style = 'clair';
     }
-
-    $cssFile = ($style === 'alternatif') ? 'clair.css' : 'sombre.css';
+    setcookie('theme', $style, time() + 3600*24*30);
+    
+    $cssFile = $style . '.css';
 
     // choix de la lang mais par défaut c'est le français
     $lang = (!empty($_GET['lang']) && $_GET['lang'] === 'en') ? 'en' : 'fr';
@@ -44,8 +45,8 @@
                 </div>
                 <div class="group-choix">
                     <span>Style :</span>
-                    <a href="?style=standard&amp;lang=<?= $lang ?>" class="btn-choix <?= ($style == 'standard') ? 'active' : '' ?>">Sombre</a>
-                    <a href="?style=alternatif&amp;lang=<?= $lang ?>" class="btn-choix <?= ($style == 'alternatif') ? 'active' : '' ?>">Clair</a>
+                    <a href="?style=sombre&amp;lang=<?= $lang ?>" class="btn-choix <?= ($style == 'sombre') ? 'active' : '' ?>">Sombre</a>
+                    <a href="?style=clair&amp;lang=<?= $lang ?>" class="btn-choix <?= ($style == 'clair') ? 'active' : '' ?>">Clair</a>
                 </div>
             </div>
         </div>

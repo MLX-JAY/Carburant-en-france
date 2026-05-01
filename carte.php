@@ -1,6 +1,18 @@
 <?php
 declare(strict_types=1);
 
+// Gestion de la dernière recherche (Ville + Code Postal)
+if (isset($_GET['ville']) && isset($_GET['code_postal'])) {
+    $derniere_ville = $_GET['ville'];
+    $dernier_cp = $_GET['code_postal'];
+    
+    setcookie('derniere_ville', $derniere_ville, time() + 3600*24*30);
+    setcookie('dernier_cp', $dernier_cp, time() + 3600*24*30);
+} else {
+    $derniere_ville = $_COOKIE['derniere_ville'] ?? '';
+    $dernier_cp = $_COOKIE['dernier_cp'] ?? '';
+}
+
 $pageTitle = 'Carte de la France - Choix de votre ville';
 $pageDescription = 'Bienvenue sur le site du projet de développement web - CY Cergy Paris Université';
 $currentPage = 'carte';
@@ -15,6 +27,16 @@ $dep = $_GET['dep'] ?? null;
 
 // Géolocalisation IP
 $geoData = getGeolocationIP();
+
+// Bloc de rappel de la dernière recherche
+if (!empty($derniere_ville) && !empty($dernier_cp)): ?>
+    <div class="rappel-recherche" style="margin-bottom:20px; padding:15px; border-radius:8px;">
+        <p>Votre dernière recherche : <strong><?= htmlspecialchars($derniere_ville) ?></strong></p>
+        <a href="carburant.php?code_postal=<?= urlencode($dernier_cp) ?>&style=<?= $style ?>" class="bouton-rapide">
+            Voir directement les prix à <?= htmlspecialchars($derniere_ville) ?>
+        </a>
+    </div>
+<?php endif;
 
 $departementsHTML = '';
 if ($index !== null && isset($regionsDepartements[$index])) {
@@ -33,7 +55,7 @@ if ($dep !== null) {
     } else {
         ob_start();
         ?>
-        <form method="get" class="form-villes" id="form-villes">
+        <form method="get" class="form-villes" id="form-villes" action="carburant.php">
             <input type="hidden" name="dep" value="<?= htmlspecialchars($dep) ?>">
             <input type="hidden" name="code_postal" value="" id="code_postal">
             <input type="hidden" name="lang" value="<?= $lang ?>">
@@ -44,6 +66,29 @@ if ($dep !== null) {
                     <option value="<?= htmlspecialchars($nom) ?>" data-code-postal="<?= htmlspecialchars($code) ?>"><?= htmlspecialchars($nom) ?> (<?= htmlspecialchars($code) ?>)</option>
                 <?php endforeach; ?>
             </select>
+            
+            <div class="champ-formulaire" style="margin-top: 15px;">
+                <label>Périmètre de recherche :</label>
+                <div class="radio-options">
+                    <label><input type="radio" name="perimetre" value="ville" checked> Uniquement cette ville</label>
+                    <label><input type="radio" name="perimetre" value="environs"> Dans les environs</label>
+                    <label><input type="radio" name="perimetre" value="departement"> Tout le département</label>
+                </div>
+            </div>
+            
+            <div class="champ-formulaire" style="margin-top: 15px; margin-bottom: 20px;">
+                <label for="carburant">Filtrer par carburant :</label>
+                <select name="carburant" id="carburant">
+                    <option value="Tous">Tous les carburants</option>
+                    <option value="Gazole">Gazole</option>
+                    <option value="E10">SP95-E10</option>
+                    <option value="SP95">SP95</option>
+                    <option value="SP98">SP98</option>
+                    <option value="E85">Superéthanol (E85)</option>
+                    <option value="GPLc">GPLc</option>
+                </select>
+            </div>
+            
             <button type="submit" class="bouton-valider">Afficher les prix</button>
         </form>
         <script>

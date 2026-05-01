@@ -57,26 +57,29 @@ function refreshCacheSiNecessaire(): void {
 
 /**
  * Fonction 3 : Recherche (Le détective)
- * Filtre les stations par code postal et extrait les données
- * @return array Tableau des stations trouvées
+ * Filtre les stations par code postal, périmètre et type de carburant.
  */
-function rechercherStations(string $code_postal): array {
+function rechercherStations(string $code_postal, string $perimetre = 'ville', string $carburant_choisi = 'Tous'): array {
     global $xmlLocalPath;
-
-    $prefixe_recherche = substr($code_postal, 0, 3);
     $stations_trouvees = [];
 
-    if (!file_exists($xmlLocalPath)) {
-        return $stations_trouvees;
-    }
-
+    if (!file_exists($xmlLocalPath)) return $stations_trouvees;
     $xml = simplexml_load_file($xmlLocalPath);
-    if ($xml === false) {
-        return $stations_trouvees;
+    if ($xml === false) return $stations_trouvees;
+
+    // 1. Logique du périmètre
+    if ($perimetre === 'departement') {
+        $prefixe_recherche = substr($code_postal, 0, 2);
+    } elseif ($perimetre === 'environs') {
+        $prefixe_recherche = substr($code_postal, 0, 3);
+    } else { // 'ville' par défaut
+        $prefixe_recherche = $code_postal;
     }
 
     foreach ($xml->pdv as $pdv) {
         $cp = (string) $pdv['cp'];
+        
+        // Si la station est dans notre zone géographique...
         if (strpos($cp, $prefixe_recherche) === 0) {
             $station = [
                 'adresse' => (string) $pdv['adresse'],
@@ -89,16 +92,32 @@ function rechercherStations(string $code_postal): array {
                 'carburants' => []
             ];
 
+            $possede_le_carburant = false;
             $maj = null;
+
+            // 2. Logique du filtre de carburant
             foreach ($pdv->prix as $prix) {
+                $nom_carb = (string) $prix['nom'];
                 $station['carburants'][] = [
-                    'nom' => (string) $prix['nom'],
+                    'nom' => $nom_carb,
                     'valeur' => (float) $prix['valeur']
                 ];
+                
+                // On vérifie si la station vend le carburant demandé
+                if ($carburant_choisi === 'Tous' || $nom_carb === $carburant_choisi) {
+                    $possede_le_carburant = true;
+                }
+
                 if ($maj === null && isset($prix['maj'])) {
                     $maj = (string) $prix['maj'];
                 }
             }
+
+            // Si elle n'a pas le carburant demandé, on l'ignore (Le Videur !)
+            if (!$possede_le_carburant) {
+                continue; 
+            }
+
             $station['maj'] = $maj;
 
             if (isset($pdv->services)) {
@@ -153,6 +172,13 @@ function construireCartesHtml(array $stations): string {
 
         $html .= '<article class="station-card" id="station-' . $index . '">';
         $html .= '<header>';
+        
+        // --- NOUVEAU : LE BADGE OR ---
+        if ($index === 0) {
+            $html .= '<div class="badge-or" style="background: linear-gradient(to right, #FFD700, #FDB931); color: #000; padding: 5px 15px; border-radius: 20px; font-weight: bold; display: inline-block; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🥇 Station la moins chère !</div>';
+        }
+        // -----------------------------
+
         $html .= '<h3>' . htmlspecialchars($station['ville']) . ' (' . htmlspecialchars($station['cp']) . ')</h3>';
         $html .= '<p class="adresse">' . htmlspecialchars($station['adresse']) . '</p>';
         
@@ -221,14 +247,32 @@ function construireCartesHtml(array $stations): string {
 
 /**
  * Fonction 1 : Orchestration (Le chef d'orchestre)
- * Appelle les autres fonctions dans l'ordre et retourne le HTML final
- * @return string Code HTML prêt à être affiché
  */
-function genererHtmlStations(string $code_postal = '95000'): string {
+function genererHtmlStations(string $code_postal = '95000', string $perimetre = 'ville', string $carburant_choisi = 'Tous'): string {
     refreshCacheSiNecessaire();
-    $stations = rechercherStations($code_postal);
     
-    // Récupération IP et enregistrement CSV
+    // On passe les nouveaux paramètres au détective
+    $stations = rechercherStations($code_postal, $perimetre, $carburant_choisi);
+    
+    // === TRI POUR TROUVER LA MOINS CHÈRE (Analyse de données) ===
+    if (!empty($stations)) {
+        usort($stations, function($a, $b) use ($carburant_choisi) {
+            // Si on cherche "Tous", on trie par Gazole par défaut. Sinon, par le carburant choisi.
+            $carburant_ref = ($carburant_choisi === 'Tous') ? 'Gazole' : $carburant_choisi;
+            
+            // On attribue 999€ si la station n'a pas le carburant pour qu'elle finisse en bas de liste
+            $prixA = 999.0;
+            foreach ($a['carburants'] as $c) { if ($c['nom'] === $carburant_ref) $prixA = $c['valeur']; }
+            
+            $prixB = 999.0;
+            foreach ($b['carburants'] as $c) { if ($c['nom'] === $carburant_ref) $prixB = $c['valeur']; }
+            
+            return $prixA <=> $prixB;
+        });
+    }
+    // ======================================================================
+
+    // Récupération IP et enregistrement CSV (Ton code existant)
     $user_ip = $_SERVER['REMOTE_ADDR'] ?? '';
     if (!empty($stations)) {
         $ville_trouvee = $stations[0]['ville'];
@@ -244,9 +288,7 @@ function genererHtmlStations(string $code_postal = '95000'): string {
     function toggleDetails(id) {
         const detailsDiv = document.getElementById("details-" + id);
         const button = document.querySelector("button[data-target=\\"details-" + id + "\\"]");
-        
         detailsDiv.hidden = !detailsDiv.hidden;
-        
         if (detailsDiv.hidden) {
             button.textContent = "Voir tous les détails";
         } else {
@@ -282,7 +324,20 @@ function enregistrerConsultationCsv(string $ville, string $ip = ''): void {
         $ligne = [$date, $heure, $villePropre, $ip];
         fputcsv($fichier, $ligne);
         
-        fclose($fichier);
-    }
-}
+         fclose($fichier);
+     }
+ }
+
+// =====================================================================
+// AFFICHAGE DE LA PAGE
+// =====================================================================
+require_once 'include/header.inc.php';
+
+$cp = $_GET['code_postal'] ?? '95000';
+$perimetre = $_GET['perimetre'] ?? 'ville';
+$carburant = $_GET['carburant'] ?? 'Tous';
+
+echo genererHtmlStations($cp, $perimetre, $carburant);
+
+require_once 'include/footer.inc.php';
 ?>
