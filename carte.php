@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+ini_set('memory_limit', '512M'); // Donne 512 Mo de RAM au serveur au lieu de 128
+
+
+// Gestion de la dernière recherche...
+
 // Gestion de la dernière recherche (Ville + Code Postal)
 if (isset($_GET['ville']) && isset($_GET['code_postal'])) {
     $derniere_ville = $_GET['ville'];
@@ -24,6 +29,10 @@ require_once 'include/fonction.inc.php';
 $lang = $_GET['lang'] ?? 'fr';
 $index = $_GET['index'] ?? null;
 $dep = $_GET['dep'] ?? null;
+$afficher = $_GET['afficher'] ?? null;
+$afficherStations = ($afficher === 'stations' || $afficher === 'prix') ? 'stations' : null;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$tri = $_GET['tri'] ?? 'prix_asc';
 
 // Géolocalisation IP
 $geoData = getGeolocationIP();
@@ -32,7 +41,7 @@ $geoData = getGeolocationIP();
 if (!empty($derniere_ville) && !empty($dernier_cp)): ?>
     <div class="rappel-recherche" style="margin-bottom:20px; padding:15px; border-radius:8px;">
         <p>Votre dernière recherche : <strong><?= htmlspecialchars($derniere_ville) ?></strong></p>
-        <a href="carburant.php?code_postal=<?= urlencode($dernier_cp) ?>&style=<?= $style ?>" class="bouton-rapide">
+        <a href="carte.php?afficher=prix&code_postal=<?= urlencode($dernier_cp) ?>&style=<?= $style ?>" class="bouton-rapide">
             Voir directement les prix à <?= htmlspecialchars($derniere_ville) ?>
         </a>
     </div>
@@ -47,7 +56,7 @@ if ($index !== null && isset($regionsDepartements[$index])) {
 }
 
 $villesHTML = '';
-if ($dep !== null) {
+if ($dep !== null && $afficher === 'villes') {
     $villes = getVillesByDepartementFast($dep);
     
     if (empty($villes)) {
@@ -55,8 +64,9 @@ if ($dep !== null) {
     } else {
         ob_start();
         ?>
-        <form method="get" class="form-villes" id="form-villes" action="carburant.php">
+        <form method="get" class="form-villes" id="form-villes" action="carte.php#exo-2">
             <input type="hidden" name="dep" value="<?= htmlspecialchars($dep) ?>">
+            <input type="hidden" name="afficher" value="prix">
             <input type="hidden" name="code_postal" value="" id="code_postal">
             <input type="hidden" name="lang" value="<?= $lang ?>">
             <input type="hidden" name="style" value="<?= $style ?>">
@@ -107,26 +117,59 @@ if ($dep !== null) {
         $villesHTML = ob_get_clean();
     }
 }
+
+$stationsHTML = '';
+$codePostal = $_GET['code_postal'] ?? '';
+$perimetre = $_GET['perimetre'] ?? 'ville';
+$carburant = $_GET['carburant'] ?? 'Tous';
+
+if ($afficher === 'prix' && !empty($codePostal)) {
+    $stationsHTML = genererHtmlStations($codePostal, $perimetre, $carburant, $tri);
+    $departementsHTML = '';
+} elseif ($afficher === 'stations' && !empty($dep)) {
+    $stationsHTML = afficherStationsParDepartement($dep);
+    $departementsHTML = '';
+}
 ?>
+
 <article id=exo-1>
     <h2>Géolocalisation IP</h2>
     <p>
         Nous avons utilisé une API de géolocalisation IP pour détecter votre emplacement approximatif. Si les informations sont correctes, 
         vous pouvez pré-remplir les champs de sélection pour accéder rapidement aux prix du carburant de votre région.
     </p>
-    <?php if ($geoData !== null): ?>
+    <?php 
+$premierDep = '';
+$regionIndex = false;
+
+if ($geoData !== null && !empty($geoData['region'])) {
+    $regionNormalisee = normaliserChaine($geoData['region']);
+    $regionsNomsNormalisees = array_map('normaliserChaine', $regionsNoms);
+    $regionIndex = array_search($regionNormalisee, $regionsNomsNormalisees);
+    if ($regionIndex !== false && isset($regionsDepartements[$regionIndex])) {
+        $premierDep = $regionsDepartements[$regionIndex][0]['id'];
+    }
+}
+
+// Fallback: utiliser un département par défaut si non trouvé (ex: Paris 75)
+if (empty($premierDep)) {
+    $premierDep = '75'; // Paris par défaut
+    $regionIndex = 4; // Île-de-France
+}
+?>
     <div class="geo-detected" role="alert">
         <p>Nous avons détecté que vous êtes à <b><?= htmlspecialchars($geoData['ville']) ?></b>, dans la région 
            <b><?= htmlspecialchars($geoData['region']) ?></b>. Est-ce correct ?</p>
         <form method="get" class="geo-form">
             <input type="hidden" name="ville" value="<?= htmlspecialchars($geoData['ville']) ?>">
-            <input type="hidden" name="dep" value="<?= htmlspecialchars($geoData['region']) ?>">
+            <input type="hidden" name="index" value="<?= $regionIndex !== false ? $regionIndex : '' ?>">
+            <input type="hidden" name="dep" value="<?= htmlspecialchars($premierDep) ?>">
+            <input type="hidden" name="afficher" value="stations">
             <input type="hidden" name="lang" value="<?= $lang ?>">
             <input type="hidden" name="style" value="<?= $style ?>">
             <button type="submit" class="bouton-geo">Oui, pré-remplir</button>
         </form>
     </div>
-    <?php endif; ?>
 </article>
 <article id="exo-2">
     <h2>Carte de la France - Sélectionnez votre région</h2>
@@ -158,10 +201,11 @@ if ($dep !== null) {
 
     <?= $departementsHTML ?>
     <?= $villesHTML ?>
+    <?= $stationsHTML ?>
 </article>
 
 <script>
-    document.querySelectorAll('area').forEach(area => {
+    document.querySelectorAll('map[name="map_regions"] area').forEach(area => {
         area.addEventListener('mouseenter', (e) => {
             const tooltip = document.getElementById('tooltip-region');
             tooltip.textContent = area.getAttribute('title');

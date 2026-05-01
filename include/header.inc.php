@@ -1,16 +1,14 @@
 <?php
-    $pageTitle = $pageTitle ;
-    $pageDescription = $pageDescription ;
-    $pageAuthor = $pageAuthor;
-    $currentPage = $currentPage ;
-    
-    // Gestion du thème (sombre/clair) via cookie et GET
+    // Gestion du thème via cookie et GET
     $style = $_GET['style'] ?? $_COOKIE['theme'] ?? 'clair';
     if (!in_array($style, ['sombre', 'clair'])) {
         $style = 'clair';
     }
     setcookie('theme', $style, time() + 3600*24*30);
-    
+    $pageTitle = $pageTitle ;
+    $pageDescription = $pageDescription ;
+    $pageAuthor = $pageAuthor;
+    $currentPage = $currentPage ;
     $cssFile = $style . '.css';
 
     // choix de la lang mais par défaut c'est le français

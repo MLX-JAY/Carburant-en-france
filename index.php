@@ -1,13 +1,5 @@
 <?php
 declare(strict_types=1);
-
-// Gestion du thème via cookie et GET
-$style = $_GET['style'] ?? $_COOKIE['theme'] ?? 'clair';
-if (!in_array($style, ['sombre', 'clair'])) {
-    $style = 'clair';
-}
-setcookie('theme', $style, time() + 3600*24*30);
-
 $pageTitle = 'Accueil - Projet de développement web';
 $pageDescription = 'Bienvenue sur le site du projet de développement web - CY Cergy Paris Université';
 $currentPage = 'index';
