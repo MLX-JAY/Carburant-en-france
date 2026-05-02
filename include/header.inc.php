@@ -5,11 +5,11 @@
         $style = 'clair';
     }
     setcookie('theme', $style, time() + 3600*24*30);
-    $pageTitle = $pageTitle ;
-    $pageDescription = $pageDescription ;
-    $pageAuthor = $pageAuthor;
-    $currentPage = $currentPage ;
+    $pageTitle = 'Carte de la France - Choix de votre ville';
+    $pageDescription = 'Bienvenue sur le site du projet de développement web - CY Cergy Paris Université';
+    $pageAuthor = 'ANURAJAN Thenuxshan, FERAOUN Mohamed Amine';
     $cssFile = $style . '.css';
+    $currentPage;
 
     // choix de la lang mais par défaut c'est le français
     $lang = (!empty($_GET['lang']) && $_GET['lang'] === 'en') ? 'en' : 'fr';

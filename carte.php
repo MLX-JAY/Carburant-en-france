@@ -1,5 +1,10 @@
 <?php
 declare(strict_types=1);
+require_once 'include/header.inc.php';
+require_once 'include/fonction.inc.php';
+
+$currentPage = 'carte';
+
 
 ini_set('memory_limit', '512M'); // Donne 512 Mo de RAM au serveur au lieu de 128
 
@@ -17,22 +22,12 @@ if (isset($_GET['ville']) && isset($_GET['code_postal'])) {
     $derniere_ville = $_COOKIE['derniere_ville'] ?? '';
     $dernier_cp = $_COOKIE['dernier_cp'] ?? '';
 }
-
-$pageTitle = 'Carte de la France - Choix de votre ville';
-$pageDescription = 'Bienvenue sur le site du projet de développement web - CY Cergy Paris Université';
-$currentPage = 'carte';
-$pageAuthor = 'ANURAJAN Thenuxshan, FERAOUN Mohamed Amine';
-
-require_once 'include/header.inc.php';
-require_once 'include/fonction.inc.php';
-
 $lang = $_GET['lang'] ?? 'fr';
-$index = $_GET['index'] ?? null;
+$index= $_GET['index'] ?? null;
 $dep = $_GET['dep'] ?? null;
 $afficher = $_GET['afficher'] ?? null;
-$afficherStations = ($afficher === 'stations' || $afficher === 'prix') ? 'stations' : null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-
+$tri = $_GET['tri'] ?? 'prix_asc';
 
 // Géolocalisation IP
 $geoData = getGeolocationIP();
@@ -41,14 +36,14 @@ $geoData = getGeolocationIP();
 if (!empty($derniere_ville) && !empty($dernier_cp)): ?>
     <div class="rappel-recherche" style="margin-bottom:20px; padding:15px; border-radius:8px;">
         <p>Votre dernière recherche : <strong><?= htmlspecialchars($derniere_ville) ?></strong></p>
-        <a href="carte.php?afficher=prix&code_postal=<?= urlencode($dernier_cp) ?>&style=<?= $style ?>" class="bouton-rapide">
+        <a href="carte.php?afficher=<?= $afficher = 'prix' ?>&code_postal=<?= urlencode($dernier_cp) ?>&style=<?= $style ?>" class="bouton-rapide">
             Voir directement les prix à <?= htmlspecialchars($derniere_ville) ?>
         </a>
     </div>
 <?php endif;
 
 $departementsHTML = '';
-if ($index !== null && isset($regionsDepartements[$index])) {
+if ($index != null && isset($regionsDepartements[$index])) {
     ob_start();
     echo '<h2>Départements de ' . $regionsNoms[$index] . '</h2>';
     afficherDepartements($regionsDepartements[$index]);
@@ -56,8 +51,9 @@ if ($index !== null && isset($regionsDepartements[$index])) {
 }
 
 $villesHTML = '';
-if ($dep !== null && $afficher === 'villes') {
-    $villes = getVillesByDepartementFast($dep);
+
+if ($dep !== null) {
+    $villes = getVillesByDepartementFast($dep); //array contenant les villes du département
     
     if (empty($villes)) {
         $villesHTML = '<p class="message-erreur">Aucune ville trouvée pour ce département.</p>';
@@ -102,12 +98,12 @@ if ($dep !== null && $afficher === 'villes') {
             <button type="submit" class="bouton-valider">Afficher les prix</button>
         </form>
         <script>
-            document.getElementById('ville').addEventListener('change', function() {
-                var selectedOption = this.options[this.selectedIndex];
-                var codePostal = selectedOption.getAttribute('data-code-postal');
-                document.getElementById('code_postal').value = codePostal;
+            document.getElementById('ville').addEventListener('change', function() { // Quand l'utilisateur change de ville, on met à jour le champ code_postal caché avec le code postal de la ville sélectionnée
+                var selectedOption = this.options[this.selectedindex]; // Récupère l'option sélectionnée
+                var codePostal = selectedOption.getAttribute('data-code-postal'); // Récupère le code postal depuis l'attribut data-code-postal de l'option
+                document.getElementById('code_postal').value = codePostal; // Met à jour le champ caché code_postal avec la valeur du code postal de la ville sélectionnée
             });
-            // Initialize on page load
+            // quand la page charge, la première ville est sélectionnée par défaut, donc on pré-remplit le code postal correspondant
             var firstOption = document.getElementById('ville').options[0];
             if (firstOption) {
                 document.getElementById('code_postal').value = firstOption.getAttribute('data-code-postal');
@@ -122,13 +118,9 @@ $stationsHTML = '';
 $codePostal = $_GET['code_postal'] ?? '';
 $perimetre = $_GET['perimetre'] ?? 'ville';
 $carburant = $_GET['carburant'] ?? 'Tous';
-$tri = $_GET['tri'] ?? 'prix_asc';
 
 if ($afficher === 'prix' && !empty($codePostal)) {
     $stationsHTML = genererHtmlStations($codePostal, $perimetre, $carburant, $tri);
-    $departementsHTML = '';
-} elseif ($afficher === 'stations' && !empty($dep)) {
-    $stationsHTML = afficherStationsParDepartement($dep);
     $departementsHTML = '';
 }
 ?>
@@ -141,21 +133,21 @@ if ($afficher === 'prix' && !empty($codePostal)) {
     </p>
     <?php 
 $premierDep = '';
-$regionIndex = false;
+$regionindex = false;
 
 if ($geoData !== null && !empty($geoData['region'])) {
     $regionNormalisee = normaliserChaine($geoData['region']);
     $regionsNomsNormalisees = array_map('normaliserChaine', $regionsNoms);
-    $regionIndex = array_search($regionNormalisee, $regionsNomsNormalisees);
-    if ($regionIndex !== false && isset($regionsDepartements[$regionIndex])) {
-        $premierDep = $regionsDepartements[$regionIndex][0]['id'];
+    $regionindex = array_search($regionNormalisee, $regionsNomsNormalisees);
+    if ($regionindex == false && isset($regionsDepartements[$regionindex])) {
+        $premierDep = $regionsDepartements[$regionindex][0]['id'];
     }
 }
 
 // Fallback: utiliser un département par défaut si non trouvé (ex: Paris 75)
 if (empty($premierDep)) {
     $premierDep = '75'; // Paris par défaut
-    $regionIndex = 4; // Île-de-France
+    $regionindex= 4; // Île-de-France
 }
 ?>
     <div class="geo-detected" role="alert">
@@ -163,7 +155,7 @@ if (empty($premierDep)) {
            <b><?= htmlspecialchars($geoData['region']) ?></b>. Est-ce correct ?</p>
         <form method="get" class="geo-form">
             <input type="hidden" name="ville" value="<?= htmlspecialchars($geoData['ville']) ?>">
-            <input type="hidden" name="index" value="<?= $regionIndex !== false ? $regionIndex : '' ?>">
+            <input type="hidden" name="index" value="<?= $regionindex === false ? $regionindex='' : $regionindex ?>">
             <input type="hidden" name="dep" value="<?= htmlspecialchars($premierDep) ?>">
             <input type="hidden" name="afficher" value="stations">
             <input type="hidden" name="lang" value="<?= $lang ?>">
@@ -185,19 +177,19 @@ if (empty($premierDep)) {
     <div id="tooltip-region" class="tooltip-region"></div>
 
     <map name="map_regions">
-        <area target="" alt="Bretagne" title="Bretagne" href="?index=0&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="44,294,95,356,208,403,285,357,297,288,266,280,246,270,165,256" shape="poly">
-        <area target="" alt="Normandie" title="Normandie" href="?index=1&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="242,175,268,276,412,318,455,250,470,223,472,176,450,143" shape="poly">
-        <area target="" alt="Haut de france" title="Haut de france" href="?index=2&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="452,141,472,175,471,222,556,232,579,261,587,214,613,209,626,155,616,117,520,46,462,61" shape="poly">
-        <area target="" alt="Grand-Est" title="Grand-Est" href="?index=3&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="573,302,577,262,588,242,588,217,617,210,627,156,661,135,868,246,822,386,807,385,777,346,742,338,715,366,692,376,673,364,657,337,608,343,587,320" shape="poly">
-        <area target="" alt="Ile-de-France" title="Ile-de-France" href="?index=4&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="460,253,463,277,486,309,503,307,519,317,520,327,537,326,551,305,572,301,575,259,558,236,492,226,472,228" shape="poly">
-        <area target="" alt="Bourgogne" title="Bourgogne" href="?index=5&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="802,385,775,348,747,342,711,371,682,376,662,358,656,339,604,347,572,304,552,307,548,322,550,344,552,449,609,475,605,499,660,502,671,477,689,480,715,489,739,483" shape="poly">
-        <area target="" alt="Val-de-Loire" title="Val-de-Loire" href="?index=6&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="369,414,377,377,422,325,457,257,483,309,508,311,515,324,545,329,549,444,504,480,437,484,403,430,385,431" shape="poly">
-        <area target="" alt="Pays-de-Loire" title="Pays-de-Loire" href="?index=7&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="211,406,285,496,329,486,305,427,367,414,372,376,412,324,300,291,290,361" shape="poly">
-        <area target="" alt="Nouvelle-Aquitaine" title="Nouvelle-Aquitaine" href="?index=8&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="252,749,346,796,362,735,351,703,416,682,456,605,495,609,524,525,504,485,437,489,404,434,382,431,370,419,311,429,335,484,293,498" shape="poly">
-        <area target="" alt="Occitanie" title="Occitanie" href="?index=9&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="351,795,367,739,356,703,419,687,458,612,499,635,535,613,547,639,573,611,616,663,648,667,661,696,645,719,625,737,560,827,483,832" shape="poly">
-        <area target="" alt="Côte-d'Azur " title="Côte-d'Azur " href="?index=10&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="628,740,667,694,657,672,715,680,698,656,768,598,798,633,838,685,748,779" shape="poly">
-        <area target="" alt="Auvergne" title="Auvergne" href="?index=11&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="762,597,697,650,705,671,658,665,620,660,573,604,549,627,538,606,502,624,499,607,529,523,509,481,547,447,600,473,602,505,661,503,677,484,714,491,784,480,804,569,802,589" shape="poly">
-        <area target="" alt="Corse" title="Corse" href="?index=12&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="889,825,944,771,959,851,933,923,904,899" shape="poly">
+        <area target="" alt="Bretagne" title="Bretagne" href="carte.php?index=<?= $index = '0' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="44,294,95,356,208,403,285,357,297,288,266,280,246,270,165,256" shape="poly">
+        <area target="" alt="Normandie" title="Normandie" href="carte.php?index=<?= $index = '1' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="242,175,268,276,412,318,455,250,470,223,472,176,450,143" shape="poly">
+        <area target="" alt="Haut de france" title="Haut de france" href="carte.php?index=<?= $index = '2' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="452,141,472,175,471,222,556,232,579,261,587,214,613,209,626,155,616,117,520,46,462,61" shape="poly">
+        <area target="" alt="Grand-Est" title="Grand-Est" href="carte.php?index=<?= $index = '3' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="573,302,577,262,588,242,588,217,617,210,627,156,661,135,868,246,822,386,807,385,777,346,742,338,715,366,692,376,673,364,657,337,608,343,587,320" shape="poly">
+        <area target="" alt="Ile-de-France" title="Ile-de-France" href="carte.php?index=<?= $index = '4' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="460,253,463,277,486,309,503,307,519,317,520,327,537,326,551,305,572,301,575,259,558,236,492,226,472,228" shape="poly">
+        <area target="" alt="Bourgogne" title="Bourgogne" href="carte.php?index=<?= $index = '5' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="802,385,775,348,747,342,711,371,682,376,662,358,656,339,604,347,572,304,552,307,548,322,550,344,552,449,609,475,605,499,660,502,671,477,689,480,715,489,739,483" shape="poly">
+        <area target="" alt="Val-de-Loire" title="Val-de-Loire" href="carte.php?index=<?= $index = '6' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="369,414,377,377,422,325,457,257,483,309,508,311,515,324,545,329,549,444,504,480,437,484,403,430,385,431" shape="poly">
+        <area target="" alt="Pays-de-Loire" title="Pays-de-Loire" href="carte.php?index=<?= $index = '7' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="211,406,285,496,329,486,305,427,367,414,372,376,412,324,300,291,290,361" shape="poly">
+        <area target="" alt="Nouvelle-Aquitaine" title="Nouvelle-Aquitaine" href="carte.php?index=<?= $index = '8' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="252,749,346,796,362,735,351,703,416,682,456,605,495,609,524,525,504,485,437,489,404,434,382,431,370,419,311,429,335,484,293,498" shape="poly">
+        <area target="" alt="Occitanie" title="Occitanie" href="carte.php?index=<?= $index = '9' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="351,795,367,739,356,703,419,687,458,612,499,635,535,613,547,639,573,611,616,663,648,667,661,696,645,719,625,737,560,827,483,832" shape="poly">
+        <area target="" alt="Côte-d'Azur " title="Côte-d'Azur " href="carte.php?index=<?= $index = '10' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="628,740,667,694,657,672,715,680,698,656,768,598,798,633,838,685,748,779" shape="poly">
+        <area target="" alt="Auvergne" title="Auvergne" href="carte.php?index=<?= $index = '11' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="762,597,697,650,705,671,658,665,620,660,573,604,549,627,538,606,502,624,499,607,529,523,509,481,547,447,600,473,602,505,661,503,677,484,714,491,784,480,804,569,802,589" shape="poly">
+        <area target="" alt="Corse" title="Corse" href="carte.php?index=<?= $index = '12' ?>&lang=<?= $lang ?>&style=<?= $style ?>#departements" coords="889,825,944,771,959,851,933,923,904,899" shape="poly">
     </map>
 
     <?= $departementsHTML ?>

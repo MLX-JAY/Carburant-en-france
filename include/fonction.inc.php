@@ -198,7 +198,6 @@ function afficherDepartements(array $departements): void {
         echo '<h3 class="departement-nom">' . htmlspecialchars($dept['nom']) . '</h3>';
         echo '<div class="boutons-departement">';
         echo '<a href="?dep=' . $dept['id'] . '&afficher=villes&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#form-villes" class="bouton-departement">Voir les villes</a>';
-        echo '<a href="?dep=' . $dept['id'] . '&afficher=stations&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#stations-section" class="bouton-departement">Voir les stations</a>';
         echo '</div>';
         echo '</article>';
     }

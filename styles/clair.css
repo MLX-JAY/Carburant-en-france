@@ -1307,7 +1307,9 @@ aside {
 
 /* Bouton "Voir les villes" */
 .bouton-departement {
-  display: inline-block;
+  display: block;
+  width: fit-content;
+  margin: 0 auto;
   padding: 10px 20px;
   background-color: #ffe1d2;
   color: #1A1E1C;
