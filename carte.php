@@ -32,7 +32,7 @@ $dep = $_GET['dep'] ?? null;
 $afficher = $_GET['afficher'] ?? null;
 $afficherStations = ($afficher === 'stations' || $afficher === 'prix') ? 'stations' : null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$tri = $_GET['tri'] ?? 'prix_asc';
+
 
 // Géolocalisation IP
 $geoData = getGeolocationIP();
@@ -122,6 +122,7 @@ $stationsHTML = '';
 $codePostal = $_GET['code_postal'] ?? '';
 $perimetre = $_GET['perimetre'] ?? 'ville';
 $carburant = $_GET['carburant'] ?? 'Tous';
+$tri = $_GET['tri'] ?? 'prix_asc';
 
 if ($afficher === 'prix' && !empty($codePostal)) {
     $stationsHTML = genererHtmlStations($codePostal, $perimetre, $carburant, $tri);

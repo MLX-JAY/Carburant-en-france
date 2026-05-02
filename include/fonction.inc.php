@@ -557,10 +557,38 @@ function refreshCacheSiNecessaire(): void {
 }
 
 /**
- * @brief Recherche (Le détective)
- * Filtre les stations par code postal et extrait les données complètes
- * @param string $code_postal Code postal pour la recherche (ex: "28000")
- * @return array Tableau des stations trouvées avec toutes les informations
+ * Recherche et extrait les données des stations de carburant depuis un fichier XML local.
+ * 
+ * Cette fonction filtre les points de vente (PDV) selon un code postal de base, 
+ * un périmètre de recherche et un type de carburant spécifique. Elle gère l'extraction 
+ * complète des coordonnées GPS, horaires, fermetures, services et ruptures.
+ *
+ * @global string $xmlLocalPath     Chemin vers le fichier XML contenant les données des stations.
+ *
+ * @param string $code_postal       Code postal de référence pour la recherche (ex: "28000").
+ * @param string $perimetre         Étendue de la recherche géographique. Valeurs possibles : 
+ *                                  - 'ville' (défaut) : correspondance exacte (5 chiffres).
+ *                                  - 'departement' : correspondance sur les 2 premiers chiffres.
+ *                                  - 'environs' : correspondance sur les 3 premiers chiffres.
+ * @param string $carburant_choisi  Filtre par type de carburant (ex: "Gazole", "SP95-E10"). 
+ *                                  Valeur 'Tous' (défaut) pour désactiver le filtre.
+ *
+ * @return array[] Tableau multidimensionnel des stations trouvées. 
+ *                 Retourne un tableau vide si le XML est introuvable ou invalide.
+ *                 Structure d'une station (tableau associatif) :
+ *                 - adresse     (string)  : Adresse physique de la station.
+ *                 - ville       (string)  : Nom de la ville.
+ *                 - cp          (string)  : Code postal.
+ *                 - automate_24 (bool)    : true si automate 24/24h présent (vérifié via attribut ou texte service).
+ *                 - latitude    (float)   : Latitude GPS (convertie depuis le format brut).
+ *                 - longitude   (float)   : Longitude GPS (convertie depuis le format brut).
+ *                 - type_route  (string)  : Type de voie (ex: "A", "R") classique ou autoroute.
+ *                 - fermeture   (?array)  : null ou tableau ['type' => string, 'debut' => string], le type est temporaire ou permanente ou definitif.
+ *                 - horaires    (array)   : Clé = jour, Valeur = '06h00 - 20h00' ou 'Fermé'.
+ *                 - maj         (?string) : Date/heure de la dernière mise à jour du prix on prend la date du premier carburant du tableau.
+ *                 - services    (array)   : Liste des noms des services proposés (strings).
+ *                 - ruptures    (array)   : Liste des ruptures ['nom' => string, 'type' => string] le type est toujours soit temporaire ou permanant je prend la valeur que si c'est tomporaire.
+ *                 - carburants  (array)   : Liste des carburants disponible ['nom' => string, 'valeur' => float].
  */
 function rechercherStations(string $code_postal, string $perimetre = 'ville', string $carburant_choisi = 'Tous'): array {
     global $xmlLocalPath;
@@ -683,9 +711,17 @@ function rechercherStations(string $code_postal, string $perimetre = 'ville', st
 }
 
 /**
- * @brief Génère le HTML des cartes de stations de carburant avec détails interactifs
- * @param array $stations Tableau des stations à afficher
- * @return string Code HTML des cartes avec toggle détails
+ * Génère le code HTML complet pour afficher la grille des stations-service.
+ * 
+ * Construit l'interface des cartes (articles) incluant les en-têtes, les badges 
+ * (Autoroute/Route), les liens d'itinéraire GPS (Google Maps), les alertes 
+ * de fermeture totale, les prix principaux, et un volet dépliant pour les détails.
+ * 
+ * @param array $stations Tableau multidimensionnel des stations (format strict 
+ *                        généré par la fonction rechercherStations).
+ * 
+ * @return string Le flux HTML complet et sécurisé (via htmlspecialchars) prêt 
+ *                à être injecté dans la page. Retourne un paragraphe d'erreur si vide.
  */
 function construireCartesHtml(array $stations): string {
     if (empty($stations)) {
@@ -791,39 +827,42 @@ function construireCartesHtml(array $stations): string {
 }
 
 /**
- * @brief Extrait proprement le prix d'un carburant précis pour une station
- */
-/**
- * @brief Extrait le prix d'un carburant pour le tri avec un système de priorité logique
+ * @brief Extrait une valeur de référence pour le tri des stations selon le carburant.
+ * @param array $station La station contenant la liste des carburants.
+ * @param string $carburant_choisi Le nom du carburant ciblé, ou 'Tous'.
+ * @return float La valeur de tri (prix exact, moyenne, ou 999.0 si invalide).
  */
 function getPrixCarburant(array $station, string $carburant_choisi): float {
-    // 1. Si l'utilisateur a ciblé un carburant précis, on ne cherche QUE celui-là
+    // Sécurité : si la station n'a pas de carburants, on l'envoie à la fin
+    if (empty($station['carburants'])) {
+        return 999.0;
+    }
+
+    // Création d'un tableau associatif ['Nom du carburant' => Prix]
+    // Ça remplace toutes tes boucles foreach d'un seul coup !
+    $prix_carburants = array_column($station['carburants'], 'valeur', 'nom');
+
+    // 1. Cas où un carburant précis est demandé
     if ($carburant_choisi !== 'Tous') {
-        foreach ($station['carburants'] as $c) {
-            if ($c['nom'] === $carburant_choisi) {
-                return $c['valeur'];
-            }
-        }
-        return 999.0; // La station n'a pas ce carburant, elle part à la fin
+        // S'il existe on retourne son prix, sinon on retourne 999.0 (opérateur null coalescing)
+        return $prix_carburants[$carburant_choisi] ?? 999.0;
     }
-    
-    // 2. Si c'est "Tous", on applique l'ordre de priorité des carburants les plus vendus
-    $ordre_priorite = ['Gazole', 'E10', 'SP95', 'SP98', 'E85', 'GPLc'];
-    
-    foreach ($ordre_priorite as $carburant_ref) {
-        foreach ($station['carburants'] as $c) {
-            if ($c['nom'] === $carburant_ref) {
-                return $c['valeur'];
-            }
-        }
-    }
-    
-    // Sécurité au cas où la station n'a vraiment aucun prix valide
-    return 999.0; 
+
+    // 2. Cas "Tous" : On utilise la moyenne des prix de cette station
+    $total_prix = array_sum($prix_carburants);
+    $nombre_carburants = count($prix_carburants);
+
+    return $total_prix / $nombre_carburants;
 }
 
 /**
- * @brief Trie un tableau de stations selon le critère demandé (prix ou alphabétique)
+ * Trie un tableau de stations selon un critère spécifique (prix ou ordre alphabétique).
+ * 
+ * @param array  $stations         Le tableau contenant les données des stations à trier.
+ * @param string $tri              Le critère de tri souhaité ('az', 'za', 'prix_asc', 'prix_desc').
+ * @param string $carburant_choisi Le nom du carburant ciblé pour le tri par prix (ou 'Tous').
+ * 
+ * @return array Le tableau des stations réorganisé selon le critère demandé.
  */
 function trierStations(array $stations, string $tri, string $carburant_choisi): array {
     usort($stations, function($a, $b) use ($tri, $carburant_choisi) {
@@ -845,8 +884,18 @@ function trierStations(array $stations, string $tri, string $carburant_choisi): 
 }
 
 /**
- * @brief Orchestration (Le chef d'orchestre)
- * Appelle les autres fonctions dans l'ordre et retourne le HTML final
+ * Fonction d'orchestration générant l'interface HTML des stations pour une zone donnée.
+ * 
+ * Cette fonction gère le cycle de vie complet de l'affichage : 
+ * mise à jour du cache, recherche des stations, application du tri, 
+ * journalisation de la consultation (CSV) et construction du rendu HTML final.
+ * 
+ * @param string $code_postal      Le code postal ciblé (par défaut : '95000').
+ * @param string $perimetre        Le périmètre de recherche géographique (par défaut : 'ville').
+ * @param string $carburant_choisi Le filtre de carburant appliqué (par défaut : 'Tous').
+ * @param string $tri              Le critère de tri appliqué à la liste (par défaut : 'prix_asc').
+ * 
+ * @return string Le code HTML complet incluant l'en-tête, la barre de tri et les cartes des stations.
  */
 function genererHtmlStations(string $code_postal = '95000', string $perimetre = 'ville', string $carburant_choisi = 'Tous', string $tri = 'prix_asc'): string {
     refreshCacheSiNecessaire();
@@ -897,27 +946,23 @@ function genererHtmlStations(string $code_postal = '95000', string $perimetre = 
 }
 
 /**
- * @brief Affiche les stations de carburant d'un département avec pagination et tri.
+ * Affiche les stations de carburant d'un département avec pagination et options de tri.
  * 
- * Cette fonction orchestre l'affichage des stations pour un département donne :
- * - Recherche les stations par prefixe de code postal
- * - Applique le tri par prix si demande
- * - Gere la pagination (20 stations par page)
- * - Genere le HTML complet avec en-tete et pagination
+ * Cette fonction orchestre l'affichage des stations à l'échelle départementale :
+ * - Recherche les stations via le préfixe du code postal du département.
+ * - Applique un tri par prix ou ordre alphabétique si demandé.
+ * - Gère la pagination de l'affichage.
+ * - Génère le HTML complet avec l'en-tête, la grille et la navigation.
  * 
- * @param string $depCode Code du departement (ex: "28")
- * @param int $page Numero de page (defaut: 1)
- * @param string $tri Type de tri ('prix' pour tri croissant par prix)
+ * @param string   $depCode Code du département (ex: "28" ou "95").
+ * @param int      $page    Numéro de la page courante pour la pagination (défaut: 1).
+ * @param string   $tri     Critère de tri appliqué ('prix' pour croissant, 'az' pour alphabétique).
+ * @param int|null $index   Index optionnel utilisé pour générer les ancres ou paramètres d'URL.
  * 
- * @return string Code HTML des stations avec pagination et outils de tri.
+ * @return string Le code HTML de la section des stations départementales.
  * 
- * @note Affiche 20 stations par page
- * @note Le tri s'applique sur le premier carburant disponible (Gazole le plus souvent)
- * 
- * @example
- * @code
- * echo afficherStationsParDepartement("28", 1, "prix"); // Affiche les stations du 28 triees par prix
- * @endcode
+ * @note La pagination est configurée pour afficher 10 stations par page.
+ * @note Le tri par prix s'applique de manière simplifiée sur le premier carburant de la liste de chaque station.
  */
 function afficherStationsParDepartement(string $depCode, int $page = 1, string $tri = '', ?int $index = null): string {
     // Normaliser le code departement
@@ -1049,6 +1094,7 @@ function afficherStationsParDepartement(string $depCode, int $page = 1, string $
  * Enregistre chaque recherche dans un fichier CSV avec la date, l'heure et l'IP
  * @param string $ville Ville recherchée
  * @param string $ip Adresse IP de l'utilisateur
+ * @note ou pourrait ne pas demander l'adress ip et utiliser REMOTE_ADDR
  */
 function enregistrerConsultationCsv(string $ville, string $ip = ''): void {
     $fichierCsv = dirname(__DIR__) . '/données/historique_recherches.csv';
