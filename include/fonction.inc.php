@@ -197,7 +197,7 @@ function afficherDepartements(array $departements): void {
         echo '<span class="departement-numero">' . $dept['id'] . '</span>';
         echo '<h3 class="departement-nom">' . htmlspecialchars($dept['nom']) . '</h3>';
         echo '<div class="boutons-departement">';
-        echo '<a href="?dep=' . $dept['id'] . '&afficher=villes&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#form-villes" class="bouton-departement">Voir les villes</a>';
+        echo '<a href="?code_postal=' . $dept['id'] . '000&afficher=villes&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#form-villes" class="bouton-departement">Voir les villes</a>';
         echo '</div>';
         echo '</article>';
     }
@@ -436,17 +436,18 @@ function getVillesByDepartementFast(string $depCode): array {
  */
 
 /**
- * @brief Normalise une chaîne pour supprimer les accents
+ * @brief Normalise une chaîne pour comparaison :去掉 accents, remplace tirets par espaces, met en majuscules
  * @param string $chaine La chaîne à normaliser
- * @return string Chaîne sans accents
+ * @return string Chaîne normalisée
  */
 function normaliserChaine(string $chaine): string {
-    $chaine = strtolower($chaine);
-    $chaine = str_replace(['é', 'è', 'ê', 'ë'], 'e', $chaine);
-    $chaine = str_replace(['à', 'â', 'ä'], 'a', $chaine);
-    $chaine = str_replace(['î', 'ï'], 'i', $chaine);
-    $chaine = str_replace(['ô', 'ö'], 'o', $chaine);
-    $chaine = str_replace(['ù', 'û', 'ü'], 'u', $chaine);
+    $chaine = str_replace('-', ' ', $chaine);
+    $chaine = strtoupper($chaine);
+    $chaine = str_replace(['É', 'È', 'Ê', 'Ë'], 'E', $chaine);
+    $chaine = str_replace(['À', 'Â', 'Ä'], 'A', $chaine);
+    $chaine = str_replace(['Î', 'Ï'], 'I', $chaine);
+    $chaine = str_replace(['Ô', 'Ö'], 'O', $chaine);
+    $chaine = str_replace(['Ù', 'Û', 'Ü'], 'U', $chaine);
     return $chaine;
 }
 
@@ -476,12 +477,15 @@ function getGeolocationIP(): ?array {
         if ($data === null || isset($data['error'])) {
             return null;
         }
-        
+
+        $bonzip = substr($data['zip_code'] ?? '', 0, 5);
+
         return [
             'ville' => $data['city_name'] ?? '',
             'region' => $data['region_name'] ?? '',
             'pays' => $data['country_name'] ?? '',
-            'ip' => $user_ip
+            'ip' => $user_ip,
+            'zip_code' => $bonzip
         ];
         
     } catch (Exception $e) {
@@ -722,16 +726,26 @@ function rechercherStations(string $code_postal, string $perimetre = 'ville', st
  * @return string Le flux HTML complet et sécurisé (via htmlspecialchars) prêt 
  *                à être injecté dans la page. Retourne un paragraphe d'erreur si vide.
  */
-function construireCartesHtml(array $stations): string {
+function construireCartesHtml(array $stations, int $page = 1, string $paginationBaseUrl = ''): string {
     if (empty($stations)) {
         return '<p class="message-erreur">Aucune station trouvée pour cette zone.</p>';
     }
 
+    $stationsParPage = 10;
+    $totalStations = count($stations);
+    $totalPages = ceil($totalStations / $stationsParPage);
+    
+    if ($page < 1) $page = 1;
+    if ($page > $totalPages && $totalPages > 0) $page = $totalPages;
+    
+    $debut = ($page - 1) * $stationsParPage;
+    $stationsPage = array_slice($stations, $debut, $stationsParPage);
+
     $carburants_principaux = ['Gazole', 'E10', 'SP95', 'SP98'];
     $html = '<div class="stations-grid">';
-    $index = 0;
+    $index = $debut;
 
-    foreach ($stations as $station) {
+    foreach ($stationsPage as $station) {
         $principaux = array_filter($station['carburants'], function($c) use ($carburants_principaux) {
             return in_array($c['nom'], $carburants_principaux);
         });
@@ -822,6 +836,30 @@ function construireCartesHtml(array $stations): string {
         $index++;
     }
     $html .= '</div>';
+    
+    if ($totalPages > 1 && !empty($paginationBaseUrl)) {
+        $html .= '<div class="pagination" style="margin-top: 30px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">';
+        
+        if ($page > 1) {
+            $html .= '<a href="' . $paginationBaseUrl . '&page=' . ($page - 1) . '" class="btn-pagination" style="padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">← Précédent</a>';
+        }
+        
+        for ($i = 1; $i <= $totalPages; $i++) {
+            if ($i == $page) {
+                $html .= '<span class="btn-pagination" style="padding: 8px 16px; background: #0056b3; color: white; border-radius: 5px;">' . $i . '</span>';
+            } else {
+                $html .= '<a href="' . $paginationBaseUrl . '&page=' . $i . '" class="btn-pagination" style="padding: 8px 16px; background: #e9ecef; color: #333; text-decoration: none; border-radius: 5px;">' . $i . '</a>';
+            }
+        }
+        
+        if ($page < $totalPages) {
+            $html .= '<a href="' . $paginationBaseUrl . '&page=' . ($page + 1) . '" class="btn-pagination" style="padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">Suivant →</a>';
+        }
+        
+        $html .= '</div>';
+        $html .= '<p style="text-align: center; margin-top: 15px; color: #666;">Station ' . ($debut + 1) . ' à ' . min($debut + $stationsParPage, $totalStations) . ' sur ' . $totalStations . '</p>';
+    }
+    
     return $html;
 }
 
@@ -896,7 +934,9 @@ function trierStations(array $stations, string $tri, string $carburant_choisi): 
  * 
  * @return string Le code HTML complet incluant l'en-tête, la barre de tri et les cartes des stations.
  */
-function genererHtmlStations(string $code_postal = '95000', string $perimetre = 'ville', string $carburant_choisi = 'Tous', string $tri = 'prix_asc'): string {
+function genererHtmlStations(string $code_postal = '95000', string $perimetre = 'ville', string $carburant_choisi = 'Tous', string $tri = 'prix_asc', ?string $index = null, int $page = 1): string {
+    global $lang, $style;
+    
     refreshCacheSiNecessaire();
     $stations = rechercherStations($code_postal, $perimetre, $carburant_choisi);
     
@@ -911,7 +951,16 @@ function genererHtmlStations(string $code_postal = '95000', string $perimetre = 
     enregistrerConsultationCsv($ville_trouvee, $user_ip);
     
     // 3. Génération de l'interface HTML
-    $baseUrl = '?afficher=prix&code_postal=' . urlencode($code_postal) . '&perimetre=' . urlencode($perimetre) . '&carburant=' . urlencode($carburant_choisi);
+    $baseUrl = 'stations.php?afficher=prix&code_postal=' . urlencode($code_postal) . '&perimetre=' . urlencode($perimetre) . '&carburant=' . urlencode($carburant_choisi);
+    if ($index !== null) {
+        $baseUrl .= '&index=' . urlencode($index);
+    }
+    if (!empty($lang)) {
+        $baseUrl .= '&lang=' . $lang;
+    }
+    if (!empty($style)) {
+        $baseUrl .= '&style=' . $style;
+    }
     
     $html = '<div class="stations-header">';
     $html .= '<h2>Stations de carburant à proximité du ' . htmlspecialchars($code_postal) . '</h2>';
@@ -929,7 +978,7 @@ function genererHtmlStations(string $code_postal = '95000', string $perimetre = 
     $html .= '</div>';
     
     // 4. On ajoute les cartes
-    $html .= construireCartesHtml($stations);
+    $html .= construireCartesHtml($stations, $page, $baseUrl);
     
     // 5. Script JS pour les détails
     $html .= '<script>
@@ -940,150 +989,6 @@ function genererHtmlStations(string $code_postal = '95000', string $perimetre = 
         button.textContent = detailsDiv.hidden ? "Voir tous les détails" : "Masquer les détails";
     }
     </script>';
-    
-    return $html;
-}
-
-/**
- * Affiche les stations de carburant d'un département avec pagination et options de tri.
- * 
- * Cette fonction orchestre l'affichage des stations à l'échelle départementale :
- * - Recherche les stations via le préfixe du code postal du département.
- * - Applique un tri par prix ou ordre alphabétique si demandé.
- * - Gère la pagination de l'affichage.
- * - Génère le HTML complet avec l'en-tête, la grille et la navigation.
- * 
- * @param string   $depCode Code du département (ex: "28" ou "95").
- * @param int      $page    Numéro de la page courante pour la pagination (défaut: 1).
- * @param string   $tri     Critère de tri appliqué ('prix' pour croissant, 'az' pour alphabétique).
- * @param int|null $index   Index optionnel utilisé pour générer les ancres ou paramètres d'URL.
- * 
- * @return string Le code HTML de la section des stations départementales.
- * 
- * @note La pagination est configurée pour afficher 10 stations par page.
- * @note Le tri par prix s'applique de manière simplifiée sur le premier carburant de la liste de chaque station.
- */
-function afficherStationsParDepartement(string $depCode, int $page = 1, string $tri = '', ?int $index = null): string {
-    // Normaliser le code departement
-    if (strlen($depCode) == 1 && is_numeric($depCode)) {
-        $depCode = str_pad($depCode, 2, '0', STR_PAD_LEFT);
-    }
-    
-    // Rechercher les stations (utilise le prefixe 3 chiffres pour le departement)
-    $prefixe = $depCode; // Ex: 280 pour le departement 28
-    refreshCacheSiNecessaire();
-    $stations = rechercherStations($prefixe);
-    
-    if (empty($stations)) {
-        return '<p class="message-erreur">Aucune station trouvee pour ce departement.</p>';
-    }
-    
-    // Tri par prix si demande
-    if ($tri === 'prix') {
-        usort($stations, function($a, $b) {
-            $prixA = $a['carburants'][0]['valeur'] ?? 999;
-            $prixB = $b['carburants'][0]['valeur'] ?? 999;
-            return $prixA <=> $prixB;
-        });
-    }
-    
-    // Tri alphabetique si demande
-    if ($tri === 'az') {
-        usort($stations, function($a, $b) {
-            return strcasecmp($a['ville'], $b['ville']);
-        });
-    }
-    
-    // Pagination
-    $stationsParPage = 10;
-    $totalStations = count($stations);
-    $totalPages = max(1, ceil($totalStations / $stationsParPage));
-    $page = max(1, min($page, $totalPages));
-    $debut = ($page - 1) * $stationsParPage;
-    $stationsPage = array_slice($stations, $debut, $stationsParPage);
-    
-    // Obtenir le nom du departement
-    $nomDepartement = '';
-    foreach ($GLOBALS['regionsDepartements'] as $region) {
-        foreach ($region as $dept) {
-            if ($dept['id'] === $depCode || $dept['id'] === (int)$depCode) {
-                $nomDepartement = $dept['nom'];
-                break 2;
-            }
-        }
-    }
-    
-    // Generation du HTML
-    $html = '<div class="stations-section" id="stations-section">';
-    
-    // En-tete
-    $html .= '<div class="stations-header">';
-    $html .= '<h2>Stations essence - ' . htmlspecialchars($nomDepartement) . ' (' . $depCode . ')</h2>';
-    $html .= '<p class="stations-compteur">' . $totalStations . ' station(s) trouvee(s)</p>';
-    $html .= '<div class="stations-toolbar">';
-    $triActif = $tri === 'prix' ? 'active' : '';
-    $triAzActif = $tri === 'az' ? 'active' : '';
-    $indexParam = $index !== null ? '&index=' . $index : '';
-    $html .= '<a href="?dep=' . $depCode . '&afficher=stations&tri=prix' . $indexParam . '#stations-section" class="btn-tri ' . $triActif . '">Trier par prix ↗</a>';
-    $html .= '<a href="?dep=' . $depCode . '&afficher=stations&tri=az' . $indexParam . '#stations-section" class="btn-tri ' . $triAzActif . '">Trier A-Z ↗</a>';
-    $html .= '</div>';
-    $html .= '</div>';
-    
-    // Grille des stations
-    $html .= '<div class="stations-grid">';
-    foreach ($stationsPage as $station) {
-        $html .= '<article class="station-card">';
-        
-        // Header avec ville et code postal
-        $html .= '<div class="station-header">';
-        $html .= '<h3>' . htmlspecialchars($station['ville']) . ' <span class="cp">(' . htmlspecialchars($station['cp']) . ')</span></h3>';
-        $html .= '</div>';
-        
-        // Body avec adresse
-        $html .= '<div class="station-body">';
-        $html .= '<p class="station-adresse">' . htmlspecialchars($station['adresse']) . '</p>';
-        $html .= '</div>';
-        
-        // Prix des carburants
-        $html .= '<div class="station-prix">';
-        foreach ($station['carburants'] as $carburant) {
-            $html .= '<div class="carburant-prix">';
-            $html .= '<span class="nom-carburant">' . htmlspecialchars($carburant['nom']) . '</span>';
-            $html .= '<span class="valeur-prix">' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</span>';
-            $html .= '</div>';
-        }
-        $html .= '</div>';
-        
-        $html .= '</article>';
-    }
-    $html .= '</div>';
-    
-    // Pagination
-    if ($totalPages > 1) {
-        $html .= '<div class="stations-pagination">';
-        
-        $baseUrl = '?dep=' . $depCode . '&afficher=stations';
-        if ($tri) {
-            $baseUrl .= '&tri=' . $tri;
-        }
-        if ($index !== null) {
-            $baseUrl .= '&index=' . $index;
-        }
-        
-        if ($page > 1) {
-            $html .= '<a href="' . $baseUrl . '&page=' . ($page - 1) . '#stations-section" class="btn-page">← Preccedent</a>';
-        }
-        
-        $html .= '<span class="page-info">Page ' . $page . ' / ' . $totalPages . '</span>';
-        
-        if ($page < $totalPages) {
-            $html .= '<a href="' . $baseUrl . '&page=' . ($page + 1) . '#stations-section" class="btn-page">Suivant →</a>';
-        }
-        
-        $html .= '</div>';
-    }
-    
-    $html .= '</div>';
     
     return $html;
 }
@@ -1111,9 +1016,69 @@ function enregistrerConsultationCsv(string $ville, string $ip = ''): void {
         $villePropre = ucfirst(strtolower($ville));
         
         $ligne = [$date, $heure, $villePropre, $ip];
-        fputcsv($fichier, $ligne);
+        fputcsv($fichier, $ligne, ',', '"', "\\");
         
         fclose($fichier);
     }
+}
+
+/**
+ * @brief Retourne le nombre total de visiteurs (nombre de recherches dans le CSV)
+ * @return int Nombre total de recherches enregistrées
+ */
+function getNombreTotalVisiteurs(): int {
+    $fichierCsv = dirname(__DIR__) . '/données/historique_recherches.csv';
+    
+    if (!file_exists($fichierCsv)) {
+        return 0;
+    }
+    
+    $fichier = fopen($fichierCsv, 'r');
+    if ($fichier === false) {
+        return 0;
+    }
+    
+    $count = 0;
+    while (fgetcsv($fichier, separator: ',', escape: '\\') !== false) {
+        $count++;
+    }
+    fclose($fichier);
+    
+    return $count > 0 ? $count - 1 : 0;
+}
+
+/**
+ * @brief Retourne les villes les plus consultées triées par ordre décroissant
+ * @param int $limite Nombre de villes à retourner (par défaut 10)
+ * @return array Tableau associatif ['Ville' => nombre de consultations]
+ */
+function getTopVilles(int $limite = 10): array {
+    $fichierCsv = dirname(__DIR__) . '/données/historique_recherches.csv';
+    
+    if (!file_exists($fichierCsv)) {
+        return [];
+    }
+    
+    $fichier = fopen($fichierCsv, 'r');
+    if ($fichier === false) {
+        return [];
+    }
+    
+    $villes = [];
+    fgetcsv($fichier, separator: ',', escape: '\\');
+    
+    while (($ligne = fgetcsv($fichier, separator: ',', escape: '\\')) !== false) {
+        if (isset($ligne[2]) && !empty($ligne[2])) {
+            $ville = trim($ligne[2]);
+            if (!isset($villes[$ville])) {
+                $villes[$ville] = 0;
+            }
+            $villes[$ville]++;
+        }
+    }
+    fclose($fichier);
+    
+    arsort($villes);
+    return array_slice($villes, 0, $limite, true);
 }
 ?>

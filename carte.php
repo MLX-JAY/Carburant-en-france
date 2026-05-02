@@ -23,20 +23,29 @@ if (isset($_GET['ville']) && isset($_GET['code_postal'])) {
     $dernier_cp = $_COOKIE['dernier_cp'] ?? '';
 }
 $lang = $_GET['lang'] ?? 'fr';
-$index= $_GET['index'] ?? null;
-$dep = $_GET['dep'] ?? null;
+$index = $_GET['index'] ?? null;
+$codePostal = $_GET['code_postal'] ?? '';
 $afficher = $_GET['afficher'] ?? null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$tri = $_GET['tri'] ?? 'prix_asc';
+$tri = $_GET['tri'] ?? $_COOKIE['tri'] ?? 'prix_asc';
+$perimetre = $_GET['perimetre'] ?? $_COOKIE['perimetre'] ?? 'ville';
+$carburant = $_GET['carburant'] ?? $_COOKIE['carburant'] ?? 'Tous';
 
-// Géolocalisation IP
-$geoData = getGeolocationIP();
+if ($afficher === 'prix' && !empty($codePostal)) {
+    setcookie('tri', $tri, time() + 3600*24*30);
+    setcookie('perimetre', $perimetre, time() + 3600*24*30);
+    setcookie('carburant', $carburant, time() + 3600*24*30);
+}
+
+// Extraire le préfixe du département (2 premiers chiffres du code postal)
+$dep = !empty($codePostal) ? substr($codePostal, 0, 2) : null;
+
 
 // Bloc de rappel de la dernière recherche
 if (!empty($derniere_ville) && !empty($dernier_cp)): ?>
     <div class="rappel-recherche" style="margin-bottom:20px; padding:15px; border-radius:8px;">
         <p>Votre dernière recherche : <strong><?= htmlspecialchars($derniere_ville) ?></strong></p>
-        <a href="carte.php?afficher=<?= $afficher = 'prix' ?>&code_postal=<?= urlencode($dernier_cp) ?>&style=<?= $style ?>" class="bouton-rapide">
+        <a href="carte.php?afficher=prix&code_postal=<?= urlencode($dernier_cp) ?>&style=<?= $style ?>&lang=<?= $lang ?>#form-villes" class="bouton-rapide">
             Voir directement les prix à <?= htmlspecialchars($derniere_ville) ?>
         </a>
     </div>
@@ -52,6 +61,17 @@ if ($index != null && isset($regionsDepartements[$index])) {
 
 $villesHTML = '';
 
+// Si on a un code_postal mais pas de ville dans l'URL, trouver la ville correspondante au code postal
+if (empty($derniere_ville) && !empty($codePostal) && $dep !== null) {
+    $villesTemp = getVillesByDepartementFast($dep);
+    foreach ($villesTemp as $nom => $code) {
+        if ($code === $codePostal) {
+            $derniere_ville = $nom;
+            break;
+        }
+    }
+}
+
 if ($dep !== null) {
     $villes = getVillesByDepartementFast($dep); //array contenant les villes du département
     
@@ -60,38 +80,39 @@ if ($dep !== null) {
     } else {
         ob_start();
         ?>
-        <form method="get" class="form-villes" id="form-villes" action="carte.php#exo-2">
-            <input type="hidden" name="dep" value="<?= htmlspecialchars($dep) ?>">
-            <input type="hidden" name="afficher" value="prix">
+        <form method="get" class="form-villes" id="form-villes" action="stations.php">
             <input type="hidden" name="code_postal" value="" id="code_postal">
+            <input type="hidden" name="afficher" value="prix">
+            <input type="hidden" name="index" value="<?= htmlspecialchars($index ?? '') ?>">
             <input type="hidden" name="lang" value="<?= $lang ?>">
             <input type="hidden" name="style" value="<?= $style ?>">
             <label for="ville">Sélectionnez une ville :</label>
+            <?php $villeNormalisee = normaliserChaine($derniere_ville ?? ''); ?>
             <select name="ville" id="ville">
                 <?php foreach ($villes as $nom => $code): ?>
-                    <option value="<?= htmlspecialchars($nom) ?>" data-code-postal="<?= htmlspecialchars($code) ?>"><?= htmlspecialchars($nom) ?> (<?= htmlspecialchars($code) ?>)</option>
+                    <option value="<?= htmlspecialchars($nom) ?>" data-code-postal="<?= htmlspecialchars($code) ?>" <?= (normaliserChaine($nom) === $villeNormalisee) ? 'selected' : '' ?>><?= htmlspecialchars($nom) ?> (<?= htmlspecialchars($code) ?>)</option>
                 <?php endforeach; ?>
             </select>
             
             <div class="champ-formulaire" style="margin-top: 15px;">
                 <label>Périmètre de recherche :</label>
                 <div class="radio-options">
-                    <label><input type="radio" name="perimetre" value="ville" checked> Uniquement cette ville</label>
-                    <label><input type="radio" name="perimetre" value="environs"> Dans les environs</label>
-                    <label><input type="radio" name="perimetre" value="departement"> Tout le département</label>
+                    <label><input type="radio" name="perimetre" value="ville" <?= ($perimetre === 'ville') ? 'checked' : '' ?>> Uniquement cette ville</label>
+                    <label><input type="radio" name="perimetre" value="environs" <?= ($perimetre === 'environs') ? 'checked' : '' ?>> Dans les environs</label>
+                    <label><input type="radio" name="perimetre" value="departement" <?= ($perimetre === 'departement') ? 'checked' : '' ?>> Tout le département</label>
                 </div>
             </div>
             
             <div class="champ-formulaire" style="margin-top: 15px; margin-bottom: 20px;">
                 <label for="carburant">Filtrer par carburant :</label>
                 <select name="carburant" id="carburant">
-                    <option value="Tous">Tous les carburants</option>
-                    <option value="Gazole">Gazole</option>
-                    <option value="E10">SP95-E10</option>
-                    <option value="SP95">SP95</option>
-                    <option value="SP98">SP98</option>
-                    <option value="E85">Superéthanol (E85)</option>
-                    <option value="GPLc">GPLc</option>
+                    <option value="Tous" <?= ($carburant === 'Tous') ? 'selected' : '' ?>>Tous les carburants</option>
+                    <option value="Gazole" <?= ($carburant === 'Gazole') ? 'selected' : '' ?>>Gazole</option>
+                    <option value="E10" <?= ($carburant === 'E10') ? 'selected' : '' ?>>SP95-E10</option>
+                    <option value="SP95" <?= ($carburant === 'SP95') ? 'selected' : '' ?>>SP95</option>
+                    <option value="SP98" <?= ($carburant === 'SP98') ? 'selected' : '' ?>>SP98</option>
+                    <option value="E85" <?= ($carburant === 'E85') ? 'selected' : '' ?>>Superéthanol (E85)</option>
+                    <option value="GPLc" <?= ($carburant === 'GPLc') ? 'selected' : '' ?>>GPLc</option>
                 </select>
             </div>
             
@@ -103,10 +124,11 @@ if ($dep !== null) {
                 var codePostal = selectedOption.getAttribute('data-code-postal'); // Récupère le code postal depuis l'attribut data-code-postal de l'option
                 document.getElementById('code_postal').value = codePostal; // Met à jour le champ caché code_postal avec la valeur du code postal de la ville sélectionnée
             });
-            // quand la page charge, la première ville est sélectionnée par défaut, donc on pré-remplit le code postal correspondant
-            var firstOption = document.getElementById('ville').options[0];
-            if (firstOption) {
-                document.getElementById('code_postal').value = firstOption.getAttribute('data-code-postal');
+            // quand la page charge, on pré-remplit le code postal correspondant à la ville sélectionnée
+            var villeSelect = document.getElementById('ville');
+            var selectedOption = villeSelect.options[villeSelect.selectedIndex];
+            if (selectedOption) {
+                document.getElementById('code_postal').value = selectedOption.getAttribute('data-code-postal');
             }
         </script>
         <?php
@@ -114,15 +136,7 @@ if ($dep !== null) {
     }
 }
 
-$stationsHTML = '';
 $codePostal = $_GET['code_postal'] ?? '';
-$perimetre = $_GET['perimetre'] ?? 'ville';
-$carburant = $_GET['carburant'] ?? 'Tous';
-
-if ($afficher === 'prix' && !empty($codePostal)) {
-    $stationsHTML = genererHtmlStations($codePostal, $perimetre, $carburant, $tri);
-    $departementsHTML = '';
-}
 ?>
 
 <article id=exo-1>
@@ -132,32 +146,49 @@ if ($afficher === 'prix' && !empty($codePostal)) {
         vous pouvez pré-remplir les champs de sélection pour accéder rapidement aux prix du carburant de votre région.
     </p>
     <?php 
-$premierDep = '';
-$regionindex = false;
+// Géolocalisation IP
+$geoData = getGeolocationIP();
 
-if ($geoData !== null && !empty($geoData['region'])) {
-    $regionNormalisee = normaliserChaine($geoData['region']);
-    $regionsNomsNormalisees = array_map('normaliserChaine', $regionsNoms);
-    $regionindex = array_search($regionNormalisee, $regionsNomsNormalisees);
-    if ($regionindex == false && isset($regionsDepartements[$regionindex])) {
-        $premierDep = $regionsDepartements[$regionindex][0]['id'];
+$regionindex = null;
+$dernier_cp = '';
+$dep = null;
+$derniere_ville = '';
+
+// Vérifier si le zip_code est valide (5 chiffres)
+if ($geoData !== null && !empty($geoData['zip_code']) && strlen($geoData['zip_code']) === 5) {
+    $dernier_cp = $geoData['zip_code'];
+    $dep = substr($dernier_cp, 0, 2);
+    $derniere_ville = $geoData['ville'];
+    
+    // Trouver l'index de la région à partir du département
+    if (!empty($dep)) {
+        foreach ($regionsDepartements as $index => $departements) {
+            foreach ($departements as $dept) {
+                if ($dept['id'] === $dep) {
+                    $regionindex = $index;
+                    break 2;
+                }
+            }
+        }
     }
 }
 
-// Fallback: utiliser un département par défaut si non trouvé (ex: Paris 75)
-if (empty($premierDep)) {
-    $premierDep = '75'; // Paris par défaut
-    $regionindex= 4; // Île-de-France
+// Fallback: si pas de zip_code valide, utiliser Paris
+if (empty($dernier_cp)) {
+    $dernier_cp = '75001';
+    $dep = '75';
+    $regionindex = 4; // Île-de-France
+    $derniere_ville = 'Paris';
 }
 ?>
     <div class="geo-detected" role="alert">
         <p>Nous avons détecté que vous êtes à <b><?= htmlspecialchars($geoData['ville']) ?></b>, dans la région 
            <b><?= htmlspecialchars($geoData['region']) ?></b>. Est-ce correct ?</p>
-        <form method="get" class="geo-form">
-            <input type="hidden" name="ville" value="<?= htmlspecialchars($geoData['ville']) ?>">
+        <form method="get" class="geo-form" action="carte.php#exo-2">
+            <input type="hidden" name="ville" value="<?= htmlspecialchars($geoData['ville'] ?? $derniere_ville) ?>">
             <input type="hidden" name="index" value="<?= $regionindex === false ? $regionindex='' : $regionindex ?>">
-            <input type="hidden" name="dep" value="<?= htmlspecialchars($premierDep) ?>">
-            <input type="hidden" name="afficher" value="stations">
+            <input type="hidden" name="code_postal" value="<?= htmlspecialchars(!empty($geoData['zip_code']) ? $geoData['zip_code'] : $dernier_cp) ?>">
+            <input type="hidden" name="afficher" value="villes">
             <input type="hidden" name="lang" value="<?= $lang ?>">
             <input type="hidden" name="style" value="<?= $style ?>">
             <button type="submit" class="bouton-geo">Oui, pré-remplir</button>
@@ -194,7 +225,6 @@ if (empty($premierDep)) {
 
     <?= $departementsHTML ?>
     <?= $villesHTML ?>
-    <?= $stationsHTML ?>
 </article>
 
 <script>
