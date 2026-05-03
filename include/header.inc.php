@@ -13,16 +13,17 @@
 
     // choix de la lang mais par défaut c'est le français
     $lang = (!empty($_GET['lang']) && $_GET['lang'] === 'en') ? 'en' : 'fr';
-?><!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="<?= $lang ?>">
+?>
+    <!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="fr">
 <head>
-    <meta charset="UTF-8" >
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" >
-    <meta name="author" content="<?= htmlspecialchars($pageAuthor) ?>" >
-    <meta name="description" content="<?= htmlspecialchars($pageDescription) ?>" >
-    <link rel="icon" type="image/png" href="images/icon.png" >
-    <title><?= htmlspecialchars($pageTitle) ?></title>
-    <link rel="stylesheet" href="styles/<?= $cssFile ?>" >
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="ANURAJAN Thenuxshan, FERAOUN Mohamed Amine" />
+    <meta name="description" content="Bienvenue sur le site du projet de développement web - CY Cergy Paris Université" />
+    <link rel="icon" type="image/png" href="images/icon.png" />
+    <title>Carte de la France - Choix de votre ville</title>
+    <link rel="stylesheet" href="styles/sombre.css" />
 </head>
 <body>
     <header id="top">
