@@ -4,23 +4,46 @@ declare(strict_types=1);
 $pageTitle = 'Stations de carburant';
 $currentPage = 'stations';
 
-require_once 'include/header.inc.php';
 require_once 'include/fonction.inc.php';
 
 ini_set('memory_limit', '512M');
 
-$codePostal = $_GET['code_postal'] ?? '';
+// Récupération des paramètres EN PREMIER
+$codePostal = $_GET['code_postal'] ?? $_COOKIE['dernier_cp'] ?? '';
 $perimetre = $_GET['perimetre'] ?? $_COOKIE['perimetre'] ?? 'ville';
-$carburant = $_GET['carburant'] ?? $_COOKIE['carburant'] ?? 'Tous';
+$carburants = $_GET['carburants'] ?? null;
+if ($carburants === null) {
+    if (isset($_COOKIE['carburants'])) {
+        $carburants = json_decode($_COOKIE['carburants'], true) ?? ['Tous'];
+    } else {
+        $carburants = ['Tous'];
+    }
+} elseif (is_string($carburants)) {
+    $carburants = [$carburants];
+}
+
+// Nettoyage : si "Tous" est coché, on ignore le reste
+if (in_array('Tous', $carburants)) {
+    $carburants = ['Tous'];
+}
+
 $tri = $_GET['tri'] ?? $_COOKIE['tri'] ?? 'prix_asc';
 $index = $_GET['index'] ?? null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($page < 1) $page = 1;
 
-setcookie('tri', $tri, time() + 3600*24*30);
-setcookie('perimetre', $perimetre, time() + 3600*24*30);
-setcookie('carburant', $carburant, time() + 3600*24*30);
+// Définir les cookies pour les paramètres de recherche (AVANT tout HTML)
+if (!isset($_COOKIE['tri']) || $_COOKIE['tri'] !== $tri) {
+    setcookie('tri', $tri, time() + 3600*24*30, '/');
+}
+if (!isset($_COOKIE['perimetre']) || $_COOKIE['perimetre'] !== $perimetre) {
+    setcookie('perimetre', $perimetre, time() + 3600*24*30, '/');
+}
+if (!isset($_COOKIE['carburants']) || $_COOKIE['carburants'] !== json_encode($carburants)) {
+    setcookie('carburants', json_encode($carburants), time() + 3600*24*30, '/');
+}
 
+// Récupérer le nom de la ville
 $villeNom = '';
 if (!empty($codePostal)) {
     $dep = substr($codePostal, 0, 2);
@@ -38,21 +61,31 @@ if (!empty($codePostal)) {
     }
 }
 
+// Enregistrer la dernière recherche dans les cookies
+if (!empty($villeNom) && !empty($codePostal)) {
+    setcookie('derniere_ville', $villeNom, time() + 3600*24*30, '/');
+    setcookie('dernier_cp', $codePostal, time() + 3600*24*30, '/');
+} elseif (!empty($codePostal)) {
+    setcookie('dernier_cp', $codePostal, time() + 3600*24*30, '/');
+    setcookie('derniere_ville', '', time() - 3600, '/');
+}
+
+// Maintenant on peut inclure le header (HTML commence ici)
+require_once 'include/header.inc.php';
+
+// Paramètres pour le lien de retour
 $retourParams = [
     'code_postal' => $codePostal,
-    'afficher' => 'prix',
     'perimetre' => $perimetre,
-    'carburant' => $carburant,
+    'carburants' => $carburants,
     'tri' => $tri,
-    'lang' => $lang,
-    'style' => $style,
 ];
 if ($index !== null) {
     $retourParams['index'] = $index;
 }
 $retourUrl = 'carte.php?' . http_build_query($retourParams) . '#form-villes';
 
-$stationsHTML = genererHtmlStations($codePostal, $perimetre, $carburant, $tri, $index, $page);
+$stationsHTML = genererHtmlStations($codePostal, $perimetre, $carburants, $tri, $index, $page);
 ?>
 
 <article id="stations-page">

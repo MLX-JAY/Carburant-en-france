@@ -1072,6 +1072,28 @@ ul {
     transform: translateY(-1px);
 }
 
+/* Style pour les icônes de thème (soleil/lune) */
+.btn-icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: none;
+    background: transparent;
+    text-decoration: none;
+    transition: transform 0.2s ease;
+}
+
+.btn-icone img {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+}
+
+.btn-icone:hover {
+    transform: scale(1.1);
+}
+
 /* Spécifique aux drapeaux */
 .btn-drapeau {
     padding: 2px;
@@ -1617,6 +1639,7 @@ aside {
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 10px;
+}
 /* Styles pour les cartes stations carburant */
 .carburants-principaux {
   display: flex;
@@ -1709,4 +1732,55 @@ aside {
   border-radius: 3px;
   font-size: 0.85rem;
 }
+
+/* Rappel dernière recherche */
+.rappel-recherche {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 15px 20px;
+  background-color: #ffffff;
+  border-left: 4px solid #0056b3;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.rappel-texte {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.rappel-texte p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #2A2E2C;
+}
+
+.icone, .icone-droite {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.bouton-rapide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #0056b3;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.bouton-rapide:hover {
+  background-color: #004494;
+  transform: translateY(-1px);
 }

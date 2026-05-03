@@ -6,35 +6,30 @@ require_once 'include/fonction.inc.php';
 $currentPage = 'carte';
 
 
-ini_set('memory_limit', '512M'); // Donne 512 Mo de RAM au serveur au lieu de 128
-
-
-// Gestion de la dernière recherche...
-
-// Gestion de la dernière recherche (Ville + Code Postal)
-if (isset($_GET['ville']) && isset($_GET['code_postal'])) {
-    $derniere_ville = $_GET['ville'];
-    $dernier_cp = $_GET['code_postal'];
-    
-    setcookie('derniere_ville', $derniere_ville, time() + 3600*24*30);
-    setcookie('dernier_cp', $dernier_cp, time() + 3600*24*30);
-} else {
-    $derniere_ville = $_COOKIE['derniere_ville'] ?? '';
-    $dernier_cp = $_COOKIE['dernier_cp'] ?? '';
-}
+// Gestion de la dernière recherche (lecture des cookies définis par stations.php)
+$derniere_ville = $_COOKIE['derniere_ville'] ?? '';
+$dernier_cp = $_COOKIE['dernier_cp'] ?? '';
 $lang = $_GET['lang'] ?? 'fr';
 $index = $_GET['index'] ?? null;
-$codePostal = $_GET['code_postal'] ?? '';
+$codePostal = $_GET['code_postal'] ?? $_COOKIE['dernier_cp'] ?? '';
 $afficher = $_GET['afficher'] ?? null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $tri = $_GET['tri'] ?? $_COOKIE['tri'] ?? 'prix_asc';
 $perimetre = $_GET['perimetre'] ?? $_COOKIE['perimetre'] ?? 'ville';
-$carburant = $_GET['carburant'] ?? $_COOKIE['carburant'] ?? 'Tous';
+$carburants = $_GET['carburants'] ?? null;
+if ($carburants === null) {
+    if (isset($_COOKIE['carburants'])) {
+        $carburants = json_decode($_COOKIE['carburants'], true) ?? ['Tous'];
+    } else {
+        $carburants = ['Tous'];
+    }
+} elseif (is_string($carburants)) {
+    $carburants = [$carburants];
+}
 
-if ($afficher === 'prix' && !empty($codePostal)) {
-    setcookie('tri', $tri, time() + 3600*24*30);
-    setcookie('perimetre', $perimetre, time() + 3600*24*30);
-    setcookie('carburant', $carburant, time() + 3600*24*30);
+// Nettoyage : si "Tous" est coché, on ignore le reste
+if (in_array('Tous', $carburants)) {
+    $carburants = ['Tous'];
 }
 
 // Extraire le préfixe du département (2 premiers chiffres du code postal)
@@ -43,10 +38,27 @@ $dep = !empty($codePostal) ? substr($codePostal, 0, 2) : null;
 
 // Bloc de rappel de la dernière recherche
 if (!empty($derniere_ville) && !empty($dernier_cp)): ?>
-    <div class="rappel-recherche" style="margin-bottom:20px; padding:15px; border-radius:8px;">
-        <p>Votre dernière recherche : <strong><?= htmlspecialchars($derniere_ville) ?></strong></p>
-        <a href="carte.php?afficher=prix&code_postal=<?= urlencode($dernier_cp) ?>&style=<?= $style ?>&lang=<?= $lang ?>#form-villes" class="bouton-rapide">
-            Voir directement les prix à <?= htmlspecialchars($derniere_ville) ?>
+    <div class="rappel-recherche">
+        <div class="rappel-texte">
+            <svg class="icone" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <p>Dernière recherche : <strong><?= htmlspecialchars($derniere_ville, ENT_QUOTES, 'UTF-8') ?></strong></p>
+        </div>
+        
+        <?php 
+        $params = [
+            'code_postal' => $dernier_cp,
+            'perimetre'   => $perimetre,
+            'carburants'  => $carburants,
+        ];
+        if ($index !== null && $index !== '') {
+            $params['index'] = $index;
+        }
+        $url_params = http_build_query($params);
+        ?>
+        
+        <a href="stations.php?<?= $url_params ?>" class="bouton-rapide">
+            Voir les prix
+            <svg class="icone-droite" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </a>
     </div>
 <?php endif;
@@ -82,20 +94,16 @@ if ($dep !== null) {
         ?>
         <form method="get" class="form-villes" id="form-villes" action="stations.php">
             <input type="hidden" name="code_postal" value="" id="code_postal">
-            <input type="hidden" name="afficher" value="prix">
+
             <input type="hidden" name="index" value="<?= htmlspecialchars($index ?? '') ?>">
-            <input type="hidden" name="lang" value="<?= $lang ?>">
-            <input type="hidden" name="style" value="<?= $style ?>">
             <label for="ville">Sélectionnez une ville :</label>
             <?php $villeNormalisee = normaliserChaine($derniere_ville ?? ''); ?>
             <select name="ville" id="ville">
                 <?php foreach ($villes as $nom => $code): ?>
                     <option value="<?= htmlspecialchars($nom) ?>" data-code-postal="<?= htmlspecialchars($code) ?>" <?= (normaliserChaine($nom) === $villeNormalisee) ? 'selected' : '' ?>><?= htmlspecialchars($nom) ?> (<?= htmlspecialchars($code) ?>)</option>
-                <?php endforeach; ?>
-            </select>
-            
-            <div class="champ-formulaire" style="margin-top: 15px;">
-                <label>Périmètre de recherche :</label>
+                 <?php endforeach; ?>
+             <div class="champ-formulaire" style="margin-top: 15px;">
+                 <label>Périmètre de recherche :</label>
                 <div class="radio-options">
                     <label><input type="radio" name="perimetre" value="ville" <?= ($perimetre === 'ville') ? 'checked' : '' ?>> Uniquement cette ville</label>
                     <label><input type="radio" name="perimetre" value="environs" <?= ($perimetre === 'environs') ? 'checked' : '' ?>> Dans les environs</label>
@@ -104,16 +112,16 @@ if ($dep !== null) {
             </div>
             
             <div class="champ-formulaire" style="margin-top: 15px; margin-bottom: 20px;">
-                <label for="carburant">Filtrer par carburant :</label>
-                <select name="carburant" id="carburant">
-                    <option value="Tous" <?= ($carburant === 'Tous') ? 'selected' : '' ?>>Tous les carburants</option>
-                    <option value="Gazole" <?= ($carburant === 'Gazole') ? 'selected' : '' ?>>Gazole</option>
-                    <option value="E10" <?= ($carburant === 'E10') ? 'selected' : '' ?>>SP95-E10</option>
-                    <option value="SP95" <?= ($carburant === 'SP95') ? 'selected' : '' ?>>SP95</option>
-                    <option value="SP98" <?= ($carburant === 'SP98') ? 'selected' : '' ?>>SP98</option>
-                    <option value="E85" <?= ($carburant === 'E85') ? 'selected' : '' ?>>Superéthanol (E85)</option>
-                    <option value="GPLc" <?= ($carburant === 'GPLc') ? 'selected' : '' ?>>GPLc</option>
-                </select>
+                <label>Carburants :</label>
+                <div class="checkbox-options" id="carburants-checkboxes">
+                    <label><input type="checkbox" name="carburants[]" value="Tous" <?= in_array('Tous', $carburants) ? 'checked' : '' ?>> Tous les carburants</label>
+                    <label><input type="checkbox" name="carburants[]" value="Gazole" <?= in_array('Gazole', $carburants) ? 'checked' : '' ?>> Gazole</label>
+                    <label><input type="checkbox" name="carburants[]" value="E10" <?= in_array('E10', $carburants) ? 'checked' : '' ?>> SP95-E10</label>
+                    <label><input type="checkbox" name="carburants[]" value="SP95" <?= in_array('SP95', $carburants) ? 'checked' : '' ?>> SP95</label>
+                    <label><input type="checkbox" name="carburants[]" value="SP98" <?= in_array('SP98', $carburants) ? 'checked' : '' ?>> SP98</label>
+                    <label><input type="checkbox" name="carburants[]" value="E85" <?= in_array('E85', $carburants) ? 'checked' : '' ?>> Superéthanol (E85)</label>
+                    <label><input type="checkbox" name="carburants[]" value="GPLc" <?= in_array('GPLc', $carburants) ? 'checked' : '' ?>> GPLc</label>
+                </div>
             </div>
             
             <button type="submit" class="bouton-valider">Afficher les prix</button>
@@ -130,6 +138,18 @@ if ($dep !== null) {
             if (selectedOption) {
                 document.getElementById('code_postal').value = selectedOption.getAttribute('data-code-postal');
             }
+
+            // Gestion du filtre "Tous" dans les checkboxes carburants
+            document.querySelectorAll('input[name="carburants[]"]').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const checkboxes = document.querySelectorAll('input[name="carburants[]"]');
+                    if (this.value === 'Tous' && this.checked) {
+                        checkboxes.forEach(c => { if (c.value !== 'Tous') c.checked = false; });
+                    } else if (this.value !== 'Tous' && this.checked) {
+                        checkboxes.forEach(c => { if (c.value === 'Tous') c.checked = false; });
+                    }
+                });
+            });
         </script>
         <?php
         $villesHTML = ob_get_clean();
@@ -189,8 +209,6 @@ if (empty($dernier_cp)) {
             <input type="hidden" name="index" value="<?= $regionindex === false ? $regionindex='' : $regionindex ?>">
             <input type="hidden" name="code_postal" value="<?= htmlspecialchars(!empty($geoData['zip_code']) ? $geoData['zip_code'] : $dernier_cp) ?>">
             <input type="hidden" name="afficher" value="villes">
-            <input type="hidden" name="lang" value="<?= $lang ?>">
-            <input type="hidden" name="style" value="<?= $style ?>">
             <button type="submit" class="bouton-geo">Oui, pré-remplir</button>
         </form>
     </div>

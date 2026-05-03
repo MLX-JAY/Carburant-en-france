@@ -1073,6 +1073,29 @@ ul {
     transform: translateY(-1px);
 }
 
+/* Style pour les icônes de thème (soleil/lune) */
+.btn-icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: none;
+    background: transparent;
+    text-decoration: none;
+    transition: transform 0.2s ease;
+}
+
+.btn-icone img {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+    filter: brightness(1.2);
+}
+
+.btn-icone:hover {
+    transform: scale(1.1);
+}
+
 /* Spécifique aux drapeaux */
 .btn-drapeau {
     padding: 2px;
@@ -1713,4 +1736,57 @@ aside {
   padding: 0.3rem 0.6rem;
   border-radius: 3px;
   font-size: 0.85rem;
+}
+
+/* Rappel dernière recherche */
+.rappel-recherche {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 15px 20px;
+  background-color: #2a2a2a;
+  border-left: 4px solid #4a9eff;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.rappel-texte {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.rappel-texte p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #E8E5D0;
+}
+
+.icone, .icone-droite {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #E8E5D0;
+}
+
+.bouton-rapide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #4a9eff;
+  color: #1a1a1a;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.bouton-rapide:hover {
+  background-color: #3a8aee;
+  transform: translateY(-1px);
 }

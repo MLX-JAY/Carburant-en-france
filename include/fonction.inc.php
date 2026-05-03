@@ -197,7 +197,8 @@ function afficherDepartements(array $departements): void {
         echo '<span class="departement-numero">' . $dept['id'] . '</span>';
         echo '<h3 class="departement-nom">' . htmlspecialchars($dept['nom']) . '</h3>';
         echo '<div class="boutons-departement">';
-        echo '<a href="?code_postal=' . $dept['id'] . '000&afficher=villes&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#form-villes" class="bouton-departement">Voir les villes</a>';
+        echo '<a href="?dep=' . $dept['id'] . '&afficher=villes&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#form-villes" class="bouton-departement">Voir les villes</a>';
+        echo '<a href="?dep=' . $dept['id'] . '&afficher=stations&lang=' . $lang . '&style=' . $style . '&index=' . $index . '#stations-section" class="bouton-departement">Voir les stations</a>';
         echo '</div>';
         echo '</article>';
     }
@@ -436,18 +437,17 @@ function getVillesByDepartementFast(string $depCode): array {
  */
 
 /**
- * @brief Normalise une chaîne pour comparaison :去掉 accents, remplace tirets par espaces, met en majuscules
+ * @brief Normalise une chaîne pour supprimer les accents
  * @param string $chaine La chaîne à normaliser
- * @return string Chaîne normalisée
+ * @return string Chaîne sans accents
  */
 function normaliserChaine(string $chaine): string {
-    $chaine = str_replace('-', ' ', $chaine);
-    $chaine = strtoupper($chaine);
-    $chaine = str_replace(['É', 'È', 'Ê', 'Ë'], 'E', $chaine);
-    $chaine = str_replace(['À', 'Â', 'Ä'], 'A', $chaine);
-    $chaine = str_replace(['Î', 'Ï'], 'I', $chaine);
-    $chaine = str_replace(['Ô', 'Ö'], 'O', $chaine);
-    $chaine = str_replace(['Ù', 'Û', 'Ü'], 'U', $chaine);
+    $chaine = strtolower($chaine);
+    $chaine = str_replace(['é', 'è', 'ê', 'ë'], 'e', $chaine);
+    $chaine = str_replace(['à', 'â', 'ä'], 'a', $chaine);
+    $chaine = str_replace(['î', 'ï'], 'i', $chaine);
+    $chaine = str_replace(['ô', 'ö'], 'o', $chaine);
+    $chaine = str_replace(['ù', 'û', 'ü'], 'u', $chaine);
     return $chaine;
 }
 
@@ -477,15 +477,12 @@ function getGeolocationIP(): ?array {
         if ($data === null || isset($data['error'])) {
             return null;
         }
-
-        $bonzip = substr($data['zip_code'] ?? '', 0, 5);
-
+        
         return [
             'ville' => $data['city_name'] ?? '',
             'region' => $data['region_name'] ?? '',
             'pays' => $data['country_name'] ?? '',
-            'ip' => $user_ip,
-            'zip_code' => $bonzip
+            'ip' => $user_ip
         ];
         
     } catch (Exception $e) {
@@ -593,7 +590,7 @@ function refreshCacheSiNecessaire(): void {
  *                 - ruptures    (array)   : Liste des ruptures ['nom' => string, 'type' => string] le type est toujours soit temporaire ou permanant je prend la valeur que si c'est tomporaire.
  *                 - carburants  (array)   : Liste des carburants disponible ['nom' => string, 'valeur' => float].
  */
-function rechercherStations(string $code_postal, string $perimetre = 'ville', string $carburant_choisi = 'Tous'): array {
+function rechercherStations(string $code_postal, string $perimetre = 'ville', array $carburants_choisis = ['Tous']): array {
     global $xmlLocalPath;
     $stations_trouvees = [];
 
@@ -671,7 +668,7 @@ function rechercherStations(string $code_postal, string $perimetre = 'ville', st
                     'valeur' => (float) $prix['valeur']
                 ];
                 
-                if ($carburant_choisi === 'Tous' || $nom_carb === $carburant_choisi) {
+                if (empty($carburants_choisis) || in_array('Tous', $carburants_choisis) || in_array($nom_carb, $carburants_choisis)) {
                     $possede_le_carburant = true;
                 }
 
@@ -726,26 +723,16 @@ function rechercherStations(string $code_postal, string $perimetre = 'ville', st
  * @return string Le flux HTML complet et sécurisé (via htmlspecialchars) prêt 
  *                à être injecté dans la page. Retourne un paragraphe d'erreur si vide.
  */
-function construireCartesHtml(array $stations, int $page = 1, string $paginationBaseUrl = ''): string {
+function construireCartesHtml(array $stations): string {
     if (empty($stations)) {
         return '<p class="message-erreur">Aucune station trouvée pour cette zone.</p>';
     }
 
-    $stationsParPage = 10;
-    $totalStations = count($stations);
-    $totalPages = ceil($totalStations / $stationsParPage);
-    
-    if ($page < 1) $page = 1;
-    if ($page > $totalPages && $totalPages > 0) $page = $totalPages;
-    
-    $debut = ($page - 1) * $stationsParPage;
-    $stationsPage = array_slice($stations, $debut, $stationsParPage);
-
     $carburants_principaux = ['Gazole', 'E10', 'SP95', 'SP98'];
     $html = '<div class="stations-grid">';
-    $index = $debut;
+    $index = 0;
 
-    foreach ($stationsPage as $station) {
+    foreach ($stations as $station) {
         $principaux = array_filter($station['carburants'], function($c) use ($carburants_principaux) {
             return in_array($c['nom'], $carburants_principaux);
         });
@@ -836,30 +823,6 @@ function construireCartesHtml(array $stations, int $page = 1, string $pagination
         $index++;
     }
     $html .= '</div>';
-    
-    if ($totalPages > 1 && !empty($paginationBaseUrl)) {
-        $html .= '<div class="pagination" style="margin-top: 30px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">';
-        
-        if ($page > 1) {
-            $html .= '<a href="' . $paginationBaseUrl . '&page=' . ($page - 1) . '" class="btn-pagination" style="padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">← Précédent</a>';
-        }
-        
-        for ($i = 1; $i <= $totalPages; $i++) {
-            if ($i == $page) {
-                $html .= '<span class="btn-pagination" style="padding: 8px 16px; background: #0056b3; color: white; border-radius: 5px;">' . $i . '</span>';
-            } else {
-                $html .= '<a href="' . $paginationBaseUrl . '&page=' . $i . '" class="btn-pagination" style="padding: 8px 16px; background: #e9ecef; color: #333; text-decoration: none; border-radius: 5px;">' . $i . '</a>';
-            }
-        }
-        
-        if ($page < $totalPages) {
-            $html .= '<a href="' . $paginationBaseUrl . '&page=' . ($page + 1) . '" class="btn-pagination" style="padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">Suivant →</a>';
-        }
-        
-        $html .= '</div>';
-        $html .= '<p style="text-align: center; margin-top: 15px; color: #666;">Station ' . ($debut + 1) . ' à ' . min($debut + $stationsParPage, $totalStations) . ' sur ' . $totalStations . '</p>';
-    }
-    
     return $html;
 }
 
@@ -869,27 +832,34 @@ function construireCartesHtml(array $stations, int $page = 1, string $pagination
  * @param string $carburant_choisi Le nom du carburant ciblé, ou 'Tous'.
  * @return float La valeur de tri (prix exact, moyenne, ou 999.0 si invalide).
  */
-function getPrixCarburant(array $station, string $carburant_choisi): float {
+function getPrixCarburant(array $station, array $carburants_choisis = []): float {
     // Sécurité : si la station n'a pas de carburants, on l'envoie à la fin
     if (empty($station['carburants'])) {
         return 999.0;
     }
 
     // Création d'un tableau associatif ['Nom du carburant' => Prix]
-    // Ça remplace toutes tes boucles foreach d'un seul coup !
     $prix_carburants = array_column($station['carburants'], 'valeur', 'nom');
 
-    // 1. Cas où un carburant précis est demandé
-    if ($carburant_choisi !== 'Tous') {
-        // S'il existe on retourne son prix, sinon on retourne 999.0 (opérateur null coalescing)
-        return $prix_carburants[$carburant_choisi] ?? 999.0;
+    // Filtrer les prix selon les carburants choisis
+    if (!empty($carburants_choisis) && !in_array('Tous', $carburants_choisis)) {
+        $prix_filtres = [];
+        foreach ($carburants_choisis as $carb) {
+            if (isset($prix_carburants[$carb])) {
+                $prix_filtres[] = $prix_carburants[$carb];
+            }
+        }
+        if (empty($prix_filtres)) {
+            return 999.0;
+        }
+        return array_sum($prix_filtres) / count($prix_filtres);
     }
 
-    // 2. Cas "Tous" : On utilise la moyenne des prix de cette station
+    // Cas "Tous" ou tableau vide : moyenne de tous les carburants de la station
     $total_prix = array_sum($prix_carburants);
-    $nombre_carburants = count($prix_carburants);
+    $count = count($prix_carburants);
 
-    return $total_prix / $nombre_carburants;
+    return $count > 0 ? $total_prix / $count : 999.0;
 }
 
 /**
@@ -901,19 +871,19 @@ function getPrixCarburant(array $station, string $carburant_choisi): float {
  * 
  * @return array Le tableau des stations réorganisé selon le critère demandé.
  */
-function trierStations(array $stations, string $tri, string $carburant_choisi): array {
-    usort($stations, function($a, $b) use ($tri, $carburant_choisi) {
+function trierStations(array $stations, string $tri, array $carburants_choisis = ['Tous']): array {
+    usort($stations, function($a, $b) use ($tri, $carburants_choisis) {
         switch ($tri) {
             case 'az':
                 return strcasecmp($a['ville'], $b['ville']);
             case 'za':
                 return strcasecmp($b['ville'], $a['ville']);
             case 'prix_desc':
-                return getPrixCarburant($b, $carburant_choisi) <=> getPrixCarburant($a, $carburant_choisi);
+                return getPrixCarburant($b, $carburants_choisis) <=> getPrixCarburant($a, $carburants_choisis);
             case 'prix_asc':
             default:
                 // Tri par prix croissant par défaut
-                return getPrixCarburant($a, $carburant_choisi) <=> getPrixCarburant($b, $carburant_choisi);
+                return getPrixCarburant($a, $carburants_choisis) <=> getPrixCarburant($b, $carburants_choisis);
         }
     });
 
@@ -934,15 +904,13 @@ function trierStations(array $stations, string $tri, string $carburant_choisi): 
  * 
  * @return string Le code HTML complet incluant l'en-tête, la barre de tri et les cartes des stations.
  */
-function genererHtmlStations(string $code_postal = '95000', string $perimetre = 'ville', string $carburant_choisi = 'Tous', string $tri = 'prix_asc', ?string $index = null, int $page = 1): string {
-    global $lang, $style;
-    
+function genererHtmlStations(string $code_postal = '95000', string $perimetre = 'ville', array $carburants_choisis = [], string $tri = 'prix_asc'): string {
     refreshCacheSiNecessaire();
-    $stations = rechercherStations($code_postal, $perimetre, $carburant_choisi);
+    $stations = rechercherStations($code_postal, $perimetre, $carburants_choisis);
     
     // 1. On délègue le tri à notre nouvelle sous-fonction !
     if (!empty($stations)) {
-        $stations = trierStations($stations, $tri, $carburant_choisi);
+        $stations = trierStations($stations, $tri, $carburants_choisis);
     }
     
     // 2. Gestion de l'historique
@@ -951,16 +919,13 @@ function genererHtmlStations(string $code_postal = '95000', string $perimetre = 
     enregistrerConsultationCsv($ville_trouvee, $user_ip);
     
     // 3. Génération de l'interface HTML
-    $baseUrl = 'stations.php?afficher=prix&code_postal=' . urlencode($code_postal) . '&perimetre=' . urlencode($perimetre) . '&carburant=' . urlencode($carburant_choisi);
-    if ($index !== null) {
-        $baseUrl .= '&index=' . urlencode($index);
-    }
-    if (!empty($lang)) {
-        $baseUrl .= '&lang=' . $lang;
-    }
-    if (!empty($style)) {
-        $baseUrl .= '&style=' . $style;
-    }
+    $baseParams = [
+        'afficher' => 'prix',
+        'code_postal' => $code_postal,
+        'perimetre' => $perimetre,
+        'carburants' => $carburants_choisis
+    ];
+    $baseUrl = '?' . http_build_query($baseParams);
     
     $html = '<div class="stations-header">';
     $html .= '<h2>Stations de carburant à proximité du ' . htmlspecialchars($code_postal) . '</h2>';
@@ -978,7 +943,7 @@ function genererHtmlStations(string $code_postal = '95000', string $perimetre = 
     $html .= '</div>';
     
     // 4. On ajoute les cartes
-    $html .= construireCartesHtml($stations, $page, $baseUrl);
+    $html .= construireCartesHtml($stations);
     
     // 5. Script JS pour les détails
     $html .= '<script>
@@ -989,6 +954,150 @@ function genererHtmlStations(string $code_postal = '95000', string $perimetre = 
         button.textContent = detailsDiv.hidden ? "Voir tous les détails" : "Masquer les détails";
     }
     </script>';
+    
+    return $html;
+}
+
+/**
+ * Affiche les stations de carburant d'un département avec pagination et options de tri.
+ * 
+ * Cette fonction orchestre l'affichage des stations à l'échelle départementale :
+ * - Recherche les stations via le préfixe du code postal du département.
+ * - Applique un tri par prix ou ordre alphabétique si demandé.
+ * - Gère la pagination de l'affichage.
+ * - Génère le HTML complet avec l'en-tête, la grille et la navigation.
+ * 
+ * @param string   $depCode Code du département (ex: "28" ou "95").
+ * @param int      $page    Numéro de la page courante pour la pagination (défaut: 1).
+ * @param string   $tri     Critère de tri appliqué ('prix' pour croissant, 'az' pour alphabétique).
+ * @param int|null $index   Index optionnel utilisé pour générer les ancres ou paramètres d'URL.
+ * 
+ * @return string Le code HTML de la section des stations départementales.
+ * 
+ * @note La pagination est configurée pour afficher 10 stations par page.
+ * @note Le tri par prix s'applique de manière simplifiée sur le premier carburant de la liste de chaque station.
+ */
+function afficherStationsParDepartement(string $depCode, int $page = 1, string $tri = '', ?int $index = null): string {
+    // Normaliser le code departement
+    if (strlen($depCode) == 1 && is_numeric($depCode)) {
+        $depCode = str_pad($depCode, 2, '0', STR_PAD_LEFT);
+    }
+    
+    // Rechercher les stations (utilise le prefixe 3 chiffres pour le departement)
+    $prefixe = $depCode; // Ex: 280 pour le departement 28
+    refreshCacheSiNecessaire();
+    $stations = rechercherStations($prefixe);
+    
+    if (empty($stations)) {
+        return '<p class="message-erreur">Aucune station trouvee pour ce departement.</p>';
+    }
+    
+    // Tri par prix si demande
+    if ($tri === 'prix') {
+        usort($stations, function($a, $b) {
+            $prixA = $a['carburants'][0]['valeur'] ?? 999;
+            $prixB = $b['carburants'][0]['valeur'] ?? 999;
+            return $prixA <=> $prixB;
+        });
+    }
+    
+    // Tri alphabetique si demande
+    if ($tri === 'az') {
+        usort($stations, function($a, $b) {
+            return strcasecmp($a['ville'], $b['ville']);
+        });
+    }
+    
+    // Pagination
+    $stationsParPage = 10;
+    $totalStations = count($stations);
+    $totalPages = max(1, ceil($totalStations / $stationsParPage));
+    $page = max(1, min($page, $totalPages));
+    $debut = ($page - 1) * $stationsParPage;
+    $stationsPage = array_slice($stations, $debut, $stationsParPage);
+    
+    // Obtenir le nom du departement
+    $nomDepartement = '';
+    foreach ($GLOBALS['regionsDepartements'] as $region) {
+        foreach ($region as $dept) {
+            if ($dept['id'] === $depCode || $dept['id'] === (int)$depCode) {
+                $nomDepartement = $dept['nom'];
+                break 2;
+            }
+        }
+    }
+    
+    // Generation du HTML
+    $html = '<div class="stations-section" id="stations-section">';
+    
+    // En-tete
+    $html .= '<div class="stations-header">';
+    $html .= '<h2>Stations essence - ' . htmlspecialchars($nomDepartement) . ' (' . $depCode . ')</h2>';
+    $html .= '<p class="stations-compteur">' . $totalStations . ' station(s) trouvee(s)</p>';
+    $html .= '<div class="stations-toolbar">';
+    $triActif = $tri === 'prix' ? 'active' : '';
+    $triAzActif = $tri === 'az' ? 'active' : '';
+    $indexParam = $index !== null ? '&index=' . $index : '';
+    $html .= '<a href="?dep=' . $depCode . '&afficher=stations&tri=prix' . $indexParam . '#stations-section" class="btn-tri ' . $triActif . '">Trier par prix ↗</a>';
+    $html .= '<a href="?dep=' . $depCode . '&afficher=stations&tri=az' . $indexParam . '#stations-section" class="btn-tri ' . $triAzActif . '">Trier A-Z ↗</a>';
+    $html .= '</div>';
+    $html .= '</div>';
+    
+    // Grille des stations
+    $html .= '<div class="stations-grid">';
+    foreach ($stationsPage as $station) {
+        $html .= '<article class="station-card">';
+        
+        // Header avec ville et code postal
+        $html .= '<div class="station-header">';
+        $html .= '<h3>' . htmlspecialchars($station['ville']) . ' <span class="cp">(' . htmlspecialchars($station['cp']) . ')</span></h3>';
+        $html .= '</div>';
+        
+        // Body avec adresse
+        $html .= '<div class="station-body">';
+        $html .= '<p class="station-adresse">' . htmlspecialchars($station['adresse']) . '</p>';
+        $html .= '</div>';
+        
+        // Prix des carburants
+        $html .= '<div class="station-prix">';
+        foreach ($station['carburants'] as $carburant) {
+            $html .= '<div class="carburant-prix">';
+            $html .= '<span class="nom-carburant">' . htmlspecialchars($carburant['nom']) . '</span>';
+            $html .= '<span class="valeur-prix">' . number_format($carburant['valeur'], 3, ',', ' ') . ' €</span>';
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+        
+        $html .= '</article>';
+    }
+    $html .= '</div>';
+    
+    // Pagination
+    if ($totalPages > 1) {
+        $html .= '<div class="stations-pagination">';
+        
+        $baseUrl = '?dep=' . $depCode . '&afficher=stations';
+        if ($tri) {
+            $baseUrl .= '&tri=' . $tri;
+        }
+        if ($index !== null) {
+            $baseUrl .= '&index=' . $index;
+        }
+        
+        if ($page > 1) {
+            $html .= '<a href="' . $baseUrl . '&page=' . ($page - 1) . '#stations-section" class="btn-page">← Preccedent</a>';
+        }
+        
+        $html .= '<span class="page-info">Page ' . $page . ' / ' . $totalPages . '</span>';
+        
+        if ($page < $totalPages) {
+            $html .= '<a href="' . $baseUrl . '&page=' . ($page + 1) . '#stations-section" class="btn-page">Suivant →</a>';
+        }
+        
+        $html .= '</div>';
+    }
+    
+    $html .= '</div>';
     
     return $html;
 }
@@ -1016,69 +1125,9 @@ function enregistrerConsultationCsv(string $ville, string $ip = ''): void {
         $villePropre = ucfirst(strtolower($ville));
         
         $ligne = [$date, $heure, $villePropre, $ip];
-        fputcsv($fichier, $ligne, ',', '"', "\\");
+        fputcsv($fichier, $ligne);
         
         fclose($fichier);
     }
-}
-
-/**
- * @brief Retourne le nombre total de visiteurs (nombre de recherches dans le CSV)
- * @return int Nombre total de recherches enregistrées
- */
-function getNombreTotalVisiteurs(): int {
-    $fichierCsv = dirname(__DIR__) . '/données/historique_recherches.csv';
-    
-    if (!file_exists($fichierCsv)) {
-        return 0;
-    }
-    
-    $fichier = fopen($fichierCsv, 'r');
-    if ($fichier === false) {
-        return 0;
-    }
-    
-    $count = 0;
-    while (fgetcsv($fichier, separator: ',', escape: '\\') !== false) {
-        $count++;
-    }
-    fclose($fichier);
-    
-    return $count > 0 ? $count - 1 : 0;
-}
-
-/**
- * @brief Retourne les villes les plus consultées triées par ordre décroissant
- * @param int $limite Nombre de villes à retourner (par défaut 10)
- * @return array Tableau associatif ['Ville' => nombre de consultations]
- */
-function getTopVilles(int $limite = 10): array {
-    $fichierCsv = dirname(__DIR__) . '/données/historique_recherches.csv';
-    
-    if (!file_exists($fichierCsv)) {
-        return [];
-    }
-    
-    $fichier = fopen($fichierCsv, 'r');
-    if ($fichier === false) {
-        return [];
-    }
-    
-    $villes = [];
-    fgetcsv($fichier, separator: ',', escape: '\\');
-    
-    while (($ligne = fgetcsv($fichier, separator: ',', escape: '\\')) !== false) {
-        if (isset($ligne[2]) && !empty($ligne[2])) {
-            $ville = trim($ligne[2]);
-            if (!isset($villes[$ville])) {
-                $villes[$ville] = 0;
-            }
-            $villes[$ville]++;
-        }
-    }
-    fclose($fichier);
-    
-    arsort($villes);
-    return array_slice($villes, 0, $limite, true);
 }
 ?>
