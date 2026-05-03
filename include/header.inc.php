@@ -63,7 +63,9 @@
         <ul>
             <li><a href="index.php?index=<?= $index ?>&amp;code_postal=<?= $codePostal ?>&amp;perimetre=<?= $perimetre ?>&amp;carburant=<?= $carburant ?>&amp;tri=<?= $tri ?>&amp;page=<?= $page ?>&amp;afficher=<?= $afficher ?>&amp;style=<?= $style ?>&amp;lang=<?= $lang ?>">Accueil</a></li>
             <li><a href="carte.php?index=<?= $index ?>&amp;code_postal=<?= $codePostal ?>&amp;perimetre=<?= $perimetre ?>&amp;carburant=<?= $carburant ?>&amp;tri=<?= $tri ?>&amp;page=<?= $page ?>&amp;afficher=<?= $afficher ?>&amp;style=<?= $style ?>&amp;lang=<?= $lang ?>">Carte</a></li>
+            <?php if ($afficher === 'prix'): ?>
             <li><a href="stations.php?index=<?= $index ?>&amp;code_postal=<?= $codePostal ?>&amp;perimetre=<?= $perimetre ?>&amp;carburant=<?= $carburant ?>&amp;tri=<?= $tri ?>&amp;page=<?= $page ?>&amp;afficher=<?= $afficher ?>&amp;style=<?= $style ?>&amp;lang=<?= $lang ?>">Stations</a></li>
+            <?php endif; ?>
             <li><a href="statistiques.php?index=<?= $index ?>&amp;code_postal=<?= $codePostal ?>&amp;perimetre=<?= $perimetre ?>&amp;carburant=<?= $carburant ?>&amp;tri=<?= $tri ?>&amp;page=<?= $page ?>&amp;afficher=<?= $afficher ?>&amp;style=<?= $style ?>&amp;lang=<?= $lang ?>">Statistiques</a></li>
         </ul>
     </nav>
