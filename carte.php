@@ -45,18 +45,16 @@ if (!empty($derniere_ville) && !empty($dernier_cp)): ?>
         </div>
         
         <?php 
-        $params = [
-            'code_postal' => $dernier_cp,
-            'perimetre'   => $perimetre,
-            'carburants'  => $carburants,
-        ];
-        if ($index !== null && $index !== '') {
-            $params['index'] = $index;
+        $url = 'stations.php?code_postal=' . urlencode($dernier_cp) . '&perimetre=' . urlencode($perimetre);
+        foreach ($carburants as $carb) {
+            $url .= '&carburants[]=' . urlencode($carb);
         }
-        $url_params = http_build_query($params);
+        if ($index !== null && $index !== '') {
+            $url .= '&index=' . urlencode($index);
+        }
         ?>
         
-        <a href="stations.php?<?= $url_params ?>" class="bouton-rapide">
+        <a href="<?= $url ?>" class="bouton-rapide">
             Voir les prix
             <svg class="icone-droite" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </a>
@@ -73,88 +71,6 @@ if ($index != null && isset($regionsDepartements[$index])) {
 
 $villesHTML = '';
 
-// Si on a un code_postal mais pas de ville dans l'URL, trouver la ville correspondante au code postal
-if (empty($derniere_ville) && !empty($codePostal) && $dep !== null) {
-    $villesTemp = getVillesByDepartementFast($dep);
-    foreach ($villesTemp as $nom => $code) {
-        if ($code === $codePostal) {
-            $derniere_ville = $nom;
-            break;
-        }
-    }
-}
-
-if ($dep !== null) {
-    $villes = getVillesByDepartementFast($dep); //array contenant les villes du département
-    
-    if (empty($villes)) {
-        $villesHTML = '<p class="message-erreur">Aucune ville trouvée pour ce département.</p>';
-    } else {
-        ob_start();
-        ?>
-        <form method="get" class="form-villes" id="form-villes" action="stations.php">
-            <input type="hidden" name="code_postal" value="" id="code_postal">
-
-            <input type="hidden" name="index" value="<?= htmlspecialchars($index ?? '') ?>">
-            <label for="ville">Sélectionnez une ville :</label>
-            <?php $villeNormalisee = normaliserChaine($derniere_ville ?? ''); ?>
-            <select name="ville" id="ville">
-                <?php foreach ($villes as $nom => $code): ?>
-                    <option value="<?= htmlspecialchars($nom) ?>" data-code-postal="<?= htmlspecialchars($code) ?>" <?= (normaliserChaine($nom) === $villeNormalisee) ? 'selected' : '' ?>><?= htmlspecialchars($nom) ?> (<?= htmlspecialchars($code) ?>)</option>
-                 <?php endforeach; ?>
-             <div class="champ-formulaire" style="margin-top: 15px;">
-                 <label>Périmètre de recherche :</label>
-                <div class="radio-options">
-                    <label><input type="radio" name="perimetre" value="ville" <?= ($perimetre === 'ville') ? 'checked' : '' ?>> Uniquement cette ville</label>
-                    <label><input type="radio" name="perimetre" value="environs" <?= ($perimetre === 'environs') ? 'checked' : '' ?>> Dans les environs</label>
-                    <label><input type="radio" name="perimetre" value="departement" <?= ($perimetre === 'departement') ? 'checked' : '' ?>> Tout le département</label>
-                </div>
-            </div>
-            
-            <div class="champ-formulaire" style="margin-top: 15px; margin-bottom: 20px;">
-                <label>Carburants :</label>
-                <div class="checkbox-options" id="carburants-checkboxes">
-                    <label><input type="checkbox" name="carburants[]" value="Tous" <?= in_array('Tous', $carburants) ? 'checked' : '' ?>> Tous les carburants</label>
-                    <label><input type="checkbox" name="carburants[]" value="Gazole" <?= in_array('Gazole', $carburants) ? 'checked' : '' ?>> Gazole</label>
-                    <label><input type="checkbox" name="carburants[]" value="E10" <?= in_array('E10', $carburants) ? 'checked' : '' ?>> SP95-E10</label>
-                    <label><input type="checkbox" name="carburants[]" value="SP95" <?= in_array('SP95', $carburants) ? 'checked' : '' ?>> SP95</label>
-                    <label><input type="checkbox" name="carburants[]" value="SP98" <?= in_array('SP98', $carburants) ? 'checked' : '' ?>> SP98</label>
-                    <label><input type="checkbox" name="carburants[]" value="E85" <?= in_array('E85', $carburants) ? 'checked' : '' ?>> Superéthanol (E85)</label>
-                    <label><input type="checkbox" name="carburants[]" value="GPLc" <?= in_array('GPLc', $carburants) ? 'checked' : '' ?>> GPLc</label>
-                </div>
-            </div>
-            
-            <button type="submit" class="bouton-valider">Afficher les prix</button>
-        </form>
-        <script>
-            document.getElementById('ville').addEventListener('change', function() { // Quand l'utilisateur change de ville, on met à jour le champ code_postal caché avec le code postal de la ville sélectionnée
-                var selectedOption = this.options[this.selectedindex]; // Récupère l'option sélectionnée
-                var codePostal = selectedOption.getAttribute('data-code-postal'); // Récupère le code postal depuis l'attribut data-code-postal de l'option
-                document.getElementById('code_postal').value = codePostal; // Met à jour le champ caché code_postal avec la valeur du code postal de la ville sélectionnée
-            });
-            // quand la page charge, on pré-remplit le code postal correspondant à la ville sélectionnée
-            var villeSelect = document.getElementById('ville');
-            var selectedOption = villeSelect.options[villeSelect.selectedIndex];
-            if (selectedOption) {
-                document.getElementById('code_postal').value = selectedOption.getAttribute('data-code-postal');
-            }
-
-            // Gestion du filtre "Tous" dans les checkboxes carburants
-            document.querySelectorAll('input[name="carburants[]"]').forEach(cb => {
-                cb.addEventListener('change', function() {
-                    const checkboxes = document.querySelectorAll('input[name="carburants[]"]');
-                    if (this.value === 'Tous' && this.checked) {
-                        checkboxes.forEach(c => { if (c.value !== 'Tous') c.checked = false; });
-                    } else if (this.value !== 'Tous' && this.checked) {
-                        checkboxes.forEach(c => { if (c.value === 'Tous') c.checked = false; });
-                    }
-                });
-            });
-        </script>
-        <?php
-        $villesHTML = ob_get_clean();
-    }
-}
 
 $codePostal = $_GET['code_postal'] ?? '';
 ?>
@@ -204,11 +120,13 @@ if (empty($dernier_cp)) {
     <div class="geo-detected" role="alert">
         <p>Nous avons détecté que vous êtes à <b><?= htmlspecialchars($geoData['ville']) ?></b>, dans la région 
            <b><?= htmlspecialchars($geoData['region']) ?></b>. Est-ce correct ?</p>
-        <form method="get" class="geo-form" action="carte.php#exo-2">
-            <input type="hidden" name="ville" value="<?= htmlspecialchars($geoData['ville'] ?? $derniere_ville) ?>">
-            <input type="hidden" name="index" value="<?= $regionindex === false ? $regionindex='' : $regionindex ?>">
-            <input type="hidden" name="code_postal" value="<?= htmlspecialchars(!empty($geoData['zip_code']) ? $geoData['zip_code'] : $dernier_cp) ?>">
-            <input type="hidden" name="afficher" value="villes">
+        <form method="get" class="geo-form" action="stations.php">
+            <input type="hidden" name="dep" value="<?= htmlspecialchars($dep) ?>">
+            <input type="hidden" name="code_postal" value="<?= htmlspecialchars($dernier_cp) ?>">
+            <input type="hidden" name="perimetre" value="<?= htmlspecialchars($perimetre) ?>">
+            <?php foreach ($carburants as $carb): ?>
+                <input type="hidden" name="carburants[]" value="<?= htmlspecialchars($carb) ?>">
+            <?php endforeach; ?>
             <button type="submit" class="bouton-geo">Oui, pré-remplir</button>
         </form>
     </div>

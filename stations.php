@@ -10,6 +10,7 @@ ini_set('memory_limit', '512M');
 
 // Récupération des paramètres EN PREMIER
 $codePostal = $_GET['code_postal'] ?? $_COOKIE['dernier_cp'] ?? '';
+$dep = $_GET['dep'] ?? null;
 $perimetre = $_GET['perimetre'] ?? $_COOKIE['perimetre'] ?? 'ville';
 $carburants = $_GET['carburants'] ?? null;
 if ($carburants === null) {
@@ -28,7 +29,6 @@ if (in_array('Tous', $carburants)) {
 }
 
 $tri = $_GET['tri'] ?? $_COOKIE['tri'] ?? 'prix_asc';
-$index = $_GET['index'] ?? null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($page < 1) $page = 1;
 
@@ -70,6 +70,32 @@ if (!empty($villeNom) && !empty($codePostal)) {
     setcookie('derniere_ville', '', time() - 3600, '/');
 }
 
+// --- SETUP DEPARTEMENT ET VILLE ---
+// Initialisation défensive de la variable $villes
+$villes = [];
+if (!empty($dep)) {
+    $villesTrouvees = getVillesByDepartementFast($dep);
+    $villes = is_array($villesTrouvees) ? $villesTrouvees : [];
+}
+
+// --- VALIDATION ET SANITIZATION ---
+$erreurFiltre = null;
+
+// Si le périmètre est le département, on purge le code postal
+if ($perimetre === 'departement') {
+    $codePostal = '';
+}
+
+// Si on arrive via un département sans code postal, on force le département
+if (!empty($dep) && empty($codePostal)) {
+    $perimetre = 'departement';
+}
+
+// Si périmètre restreint mais aucun code postal n'est fourni : on bloque la requête SQL
+if (($perimetre === 'ville' || $perimetre === 'environs') && empty($codePostal)) {
+    $erreurFiltre = "Erreur : Vous devez sélectionner une ville pour ce périmètre de recherche.";
+}
+
 // Maintenant on peut inclure le header (HTML commence ici)
 require_once 'include/header.inc.php';
 
@@ -77,25 +103,95 @@ require_once 'include/header.inc.php';
 $retourParams = [
     'code_postal' => $codePostal,
     'perimetre' => $perimetre,
-    'carburants' => $carburants,
     'tri' => $tri,
 ];
-if ($index !== null) {
-    $retourParams['index'] = $index;
+$retourUrl = 'carte.php?' . http_build_query($retourParams);
+foreach ($carburants as $carb) {
+    $retourUrl .= '&carburants[]=' . urlencode($carb);
 }
-$retourUrl = 'carte.php?' . http_build_query($retourParams) . '#form-villes';
 
-$stationsHTML = genererHtmlStations($codePostal, $perimetre, $carburants, $tri, $index, $page);
+// Préparer le code postal pour la recherche
+$codePostalRecherche = $codePostal;
+if ($perimetre === 'departement' && !empty($dep)) {
+    $codePostalRecherche = $dep . '000';
+}
 ?>
 
 <article id="stations-page">
-    <div class="retour-carte" style="margin-bottom: 20px;">
-        <a href="<?= htmlspecialchars($retourUrl) ?>" class="bouton-retour" style="display: inline-block; padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; font-size: 0.9em;">
+    <div class="retour-carte">
+        <a href="<?= htmlspecialchars($retourUrl) ?>" class="bouton-retour">
             ← Retour à la carte
         </a>
     </div>
 
-    <?= $stationsHTML ?>
+    <form method="get" action="stations.php" class="form-stations">
+        <?php if (!empty($dep)): ?>
+            <input type="hidden" name="dep" value="<?= htmlspecialchars($dep) ?>">
+        <?php endif; ?>
+
+        <div style="margin-bottom: 15px;">
+            <strong>Périmètre :</strong>
+            <label><input type="radio" name="perimetre" value="ville" <?= $perimetre === 'ville' ? 'checked' : '' ?>> Ville</label>
+            <label><input type="radio" name="perimetre" value="environs" <?= $perimetre === 'environs' ? 'checked' : '' ?>> Environs</label>
+            <label><input type="radio" name="perimetre" value="departement" <?= $perimetre === 'departement' ? 'checked' : '' ?>> Département</label>
+        </div>
+
+        <div id="bloc-ville" style="margin-bottom: 15px;">
+            <strong>Sélectionnez une ville :</strong>
+            <select name="code_postal" id="select-ville" class="select-ville">
+                <?php if (empty($villes)): ?>
+                    <option value="">Aucune ville disponible</option>
+                <?php else: ?>
+                    <?php foreach ($villes as $nom => $code): ?>
+                        <option value="<?= htmlspecialchars($code) ?>" <?= $code === $codePostal ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($nom) ?> (<?= htmlspecialchars($code) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <strong>Carburants :</strong>
+            <label><input type="checkbox" name="carburants[]" value="Tous" <?= in_array('Tous', $carburants) ? 'checked' : '' ?>> Tous</label>
+            <label><input type="checkbox" name="carburants[]" value="Gazole" <?= in_array('Gazole', $carburants) ? 'checked' : '' ?>> Gazole</label>
+            <label><input type="checkbox" name="carburants[]" value="E10" <?= in_array('E10', $carburants) ? 'checked' : '' ?>> E10</label>
+            <label><input type="checkbox" name="carburants[]" value="SP95" <?= in_array('SP95', $carburants) ? 'checked' : '' ?>> SP95</label>
+            <label><input type="checkbox" name="carburants[]" value="SP98" <?= in_array('SP98', $carburants) ? 'checked' : '' ?>> SP98</label>
+            <label><input type="checkbox" name="carburants[]" value="E85" <?= in_array('E85', $carburants) ? 'checked' : '' ?>> E85</label>
+            <label><input type="checkbox" name="carburants[]" value="GPLc" <?= in_array('GPLc', $carburants) ? 'checked' : '' ?>> GPLc</label>
+        </div>
+
+        <button type="submit">Appliquer les filtres</button>
+    </form>
+
+    <?php if ($erreurFiltre): ?>
+        <p class="message-erreur"><?= htmlspecialchars($erreurFiltre) ?></p>
+    <?php elseif (!empty($codePostalRecherche)): ?>
+        <?= genererHtmlStations($codePostalRecherche, $perimetre, $carburants, $tri, $page) ?>
+    <?php endif; ?>
 </article>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const radios = document.querySelectorAll('input[name="perimetre"]');
+    const blocVille = document.getElementById('bloc-ville');
+    const selectVille = document.getElementById('select-ville');
+
+    function gererAffichageVille() {
+        const perimetreActuel = document.querySelector('input[name="perimetre"]:checked')?.value;
+        if (perimetreActuel === 'departement') {
+            blocVille.style.display = 'none';
+            selectVille.disabled = true;
+        } else {
+            blocVille.style.display = 'block';
+            selectVille.disabled = false;
+        }
+    }
+
+    radios.forEach(radio => radio.addEventListener('change', gererAffichageVille));
+    gererAffichageVille();
+});
+</script>
 
 <?php require_once 'include/footer.inc.php'; ?>

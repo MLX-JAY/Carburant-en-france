@@ -1392,7 +1392,8 @@ aside {
   padding: 15px;
   background: #F0EFEA;
   border-left: 4px solid #CF5E26;
-  color: #1A1E1C;
+  color: #CF5E26;
+  font-weight: bold;
 }
 
 /* Géolocalisation détectée */
@@ -1783,4 +1784,67 @@ aside {
 .bouton-rapide:hover {
   background-color: #004494;
   transform: translateY(-1px);
+}
+
+/* Styles pour le formulaire de stations.php */
+.form-stations {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.bouton-retour {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #6c757d;
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  font-size: 0.9em;
+  transition: background 0.2s;
+}
+
+.bouton-retour:hover {
+  background: #5a6268;
+}
+
+.select-ville {
+  padding: 8px 12px;
+  border: 1px solid #C8CCC9;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #1A1E1C;
+  font-size: 0.95rem;
+  min-width: 250px;
+}
+
+.form-stations label {
+  margin-right: 15px;
+  cursor: pointer;
+  color: #1A1E1C;
+}
+
+.form-stations strong {
+  color: #1A1E1C;
+  font-weight: 600;
+}
+
+.form-stations button[type="submit"] {
+  padding: 10px 20px;
+  background: #CF5E26;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background 0.2s;
+}
+
+.form-stations button[type="submit"]:hover {
+  background: #B5521F;
+}
+
+.retour-carte {
+  margin-bottom: 20px;
 }
