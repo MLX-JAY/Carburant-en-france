@@ -16,7 +16,7 @@
     <footer>
         <nav class="navigation-pied">
             <ul>
-                <li><a href="index.php?style=<?= $style ?>&lang=<?= $lang ?>">Accueil</a></li>
+                <li><a href="index.php?index=<?= $index ?>&code_postal=<?= $codePostal ?>&perimetre=<?= $perimetre ?>&carburant=<?= $carburant ?>&tri=<?= $tri ?>&page=<?= $page ?>&afficher=<?= $afficher ?>&style=<?= $style ?>&lang=<?= $lang ?>">Accueil</a></li>
             </ul>
         </nav>
         <address>
